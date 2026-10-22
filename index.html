@@ -21,17 +21,17 @@
     padding-top:env(safe-area-inset-top,0px);
   }
 
-  /* PASSWORD */
-  #passScreen{
+  /* ACCESS GATE */
+  #gate{
     position:fixed;inset:0;z-index:9999;overflow:hidden;
     background:radial-gradient(120% 80% at 50% 0%,#12161f 0%,#06070b 55%,#000 100%);
-    display:flex;align-items:center;justify-content:center;padding:24px;
+    display:none;align-items:center;justify-content:center;padding:24px;
   }
   #snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   .pass-card{
     position:relative;width:100%;max-width:320px;
-    display:flex;flex-direction:column;align-items:center;gap:14px;
-    padding:30px 22px 24px;
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+    padding:30px 22px 26px;text-align:center;
     background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);
     border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.6);
     -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
@@ -42,27 +42,12 @@
     display:flex;align-items:center;justify-content:center;margin-bottom:2px;
   }
   .pass-badge svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-  #passScreen h1{font-size:20px;font-weight:600;letter-spacing:.3px;text-align:center}
-  #passScreen p{font-size:13px;color:var(--text-dim);text-align:center;margin-top:-6px}
-  #passInput{
-    width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
-    border-radius:12px;outline:none;color:var(--text);
-    font-size:16px;padding:13px 14px;text-align:center;
-    letter-spacing:3px;font-family:monospace;margin-top:4px;
-    transition:border-color .2s,box-shadow .2s;
-  }
-  #passInput:focus{border-color:rgba(255,255,255,.4);box-shadow:0 0 0 3px rgba(255,255,255,.08)}
-  #passInput::placeholder{letter-spacing:0;font-family:inherit;color:var(--text-muted);font-size:14px}
-  #passInput.shake{animation:shake .35s}
-  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
-  #passScreen p.err{color:var(--red)}
-  #passInput.bad{border-color:rgba(239,83,80,.6)}
-  .pass-btn{
-    background:#fff;color:#000;border:none;border-radius:12px;
-    padding:13px;width:100%;margin-top:-4px;
-    font-size:15px;font-weight:600;cursor:pointer;
-  }
-  .pass-btn:active{opacity:.7}
+  .pass-badge.bad{border-color:rgba(239,83,80,.5);background:rgba(239,83,80,.08)}
+  .pass-badge.bad svg{stroke:var(--red)}
+  #gate h1{font-size:20px;font-weight:600;letter-spacing:.3px}
+  #gate p{font-size:13px;color:var(--text-dim);line-height:1.45}
+  #gateId{font-family:monospace;font-size:12px;color:var(--text-muted);letter-spacing:1px;margin-top:2px}
+  #gateId.big{font-size:20px;color:var(--text);letter-spacing:2px;padding:10px 14px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.05);user-select:all;-webkit-user-select:all}
 
   /* MAIN */
   #mainApp{display:none}
@@ -239,17 +224,16 @@
 </head>
 <body>
 
-<!-- PASSWORD -->
-<div id="passScreen">
+<!-- ACCESS GATE -->
+<div id="gate">
   <canvas id="snow"></canvas>
   <div class="pass-card">
-    <div class="pass-badge">
+    <div class="pass-badge" id="gateBadge">
       <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
     </div>
-    <h1>График Дежурства</h1>
-    <p id="passSub">Введите пароль для доступа</p>
-    <input id="passInput" type="password" placeholder="Пароль" autocomplete="off"/>
-    <button class="pass-btn" onclick="checkPass()">Войти</button>
+    <h1 id="gateTitle"></h1>
+    <p id="gateText"></p>
+    <div id="gateId"></div>
   </div>
 </div>
 
@@ -314,7 +298,8 @@ var PAIRS = [
   {id:10, a:'Щербаков',  b:'Кудреевич'}
 ];
 
-var PASSWORD = 'cxzdsaytrewq321';
+// FILL: твой Telegram user id (число). при первом запуске экран покажет его, пока 0 никого не пускает
+var OWNER_ID = 8018085618;
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 var S; // declared first, assigned below
@@ -389,10 +374,12 @@ function save() {
 // initialise S immediately
 S = loadState();
 
-// ── SNOW (экран пароля, редкий, белые точки) ─────────────────────────────────
-var _snowOn = true;
+// ── SNOW (экран блокировки, редкий, белые точки) ─────────────────────────────
+var _snowOn = false;
+var startSnow = function(){};
 (function(){
   var cv = document.getElementById('snow'); if (!cv) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var ctx = cv.getContext('2d');
   var dpr = Math.min(window.devicePixelRatio || 1, 2), W = 0, H = 0, flakes = [];
   function size(){
@@ -403,12 +390,8 @@ var _snowOn = true;
     return { x:Math.random()*W, y:initial?Math.random()*H:-6, r:0.8+Math.random()*1.5,
              v:0.25+Math.random()*0.55, a:0.35+Math.random()*0.55, ph:Math.random()*6.28, sw:0.2+Math.random()*0.5 };
   }
-  size();
-  var N = Math.round(Math.min(45, Math.max(24, W*H/9000)));
-  for (var i=0;i<N;i++) flakes.push(mk(true));
-  window.addEventListener('resize', size);
   function tick(t){
-    if (!_snowOn) { window.removeEventListener('resize', size); return; }
+    if (!_snowOn) return;
     ctx.clearRect(0,0,W,H); ctx.fillStyle = '#fff';
     for (var i=0;i<flakes.length;i++){
       var f = flakes[i];
@@ -418,33 +401,53 @@ var _snowOn = true;
     }
     requestAnimationFrame(tick);
   }
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { _snowOn = false; return; }
-  requestAnimationFrame(tick);
+  startSnow = function(){
+    if (_snowOn) return;
+    size(); flakes = [];
+    var N = Math.round(Math.min(45, Math.max(24, W*H/9000)));
+    for (var i=0;i<N;i++) flakes.push(mk(true));
+    window.addEventListener('resize', size);
+    _snowOn = true; requestAnimationFrame(tick);
+  };
 })();
 
-// ── PASSWORD ──────────────────────────────────────────────────────────────────
-function checkPass() {
-  var v = document.getElementById('passInput').value;
-  if (v === PASSWORD) {
-    _snowOn = false;
-    document.getElementById('passScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    render();
-  } else {
-    var inp = document.getElementById('passInput');
-    var sub = document.getElementById('passSub');
-    inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake', 'bad');
-    sub.textContent = 'Неверный пароль'; sub.classList.add('err');
-    clearTimeout(window._pt);
-    window._pt = setTimeout(function(){
-      sub.textContent = 'Введите пароль для доступа'; sub.classList.remove('err'); inp.classList.remove('bad');
-    }, 2000);
-    inp.value = '';
-  }
+// ── ACCESS (вход через телеграм: пускает только OWNER_ID) ─────────────────────
+// ВАЖНО: это проверка на экране, не серверная защита. данные лежат в твоём CloudStorage
+// и на устройстве, чужой их всё равно не получит. серверная проверка initData нужна только с бэкендом.
+var _owner = false;
+
+function showGate(kind, uid) {
+  var T = {
+    notg:    ['Открой через Telegram', 'Этот график работает только внутри бота.', false],
+    setup:   ['Первый запуск', 'Твой Telegram ID. Пришли его, впишу в файл, и вход заработает.', false],
+    blocked: ['Доступ заблокирован', 'Этот график доступен только владельцу.', true]
+  }[kind];
+  document.getElementById('gateTitle').textContent = T[0];
+  document.getElementById('gateText').textContent  = T[1];
+  document.getElementById('gateBadge').classList.toggle('bad', T[2]);
+  var idEl = document.getElementById('gateId');
+  idEl.textContent = uid ? (kind === 'setup' ? String(uid) : 'ID: ' + uid) : '';
+  idEl.classList.toggle('big', kind === 'setup');
+  document.getElementById('gate').style.display = 'flex';
+  startSnow();
 }
-document.getElementById('passInput').addEventListener('keydown', function(e){
-  if (e.key === 'Enter') checkPass();
-});
+
+function showApp() {
+  _owner = true; _snowOn = false;
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  render();
+  cloudPull();
+}
+
+function checkAccess() {
+  var u = TG && TG.initDataUnsafe && TG.initDataUnsafe.user;
+  var uid = u ? u.id : null;
+  if (!uid)       { showGate('notg'); return; }
+  if (!OWNER_ID)  { showGate('setup', uid); return; }
+  if (uid === OWNER_ID) { showApp(); return; }
+  showGate('blocked', uid);
+}
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
 function render() {
@@ -776,8 +779,8 @@ if (TG) {
   TG.ready();
   TG.expand();
 }
-cloudPull();
-document.addEventListener('visibilitychange', function(){ if (!document.hidden) cloudPull(); });
+checkAccess();
+document.addEventListener('visibilitychange', function(){ if (!document.hidden && _owner) cloudPull(); });
 </script>
 </body>
 </html>
