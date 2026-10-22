@@ -71,6 +71,15 @@
     padding:16px 14px 6px;
   }
 
+  .sec-row{display:flex;align-items:center}
+  .sec-row .sec-label{padding-right:4px}
+  .copy-btn{
+    background:none;border:none;color:#fff;width:30px;height:30px;border-radius:8px;
+    margin-top:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;
+  }
+  .copy-btn:active{background:var(--surface2)}
+  .copy-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
   /* DUTY LIST */
   .duty-list{display:flex;flex-direction:column}
   .duty-item{
@@ -244,7 +253,12 @@
     <button class="dots-btn" onclick="openHeaderMenu(event)">⋯</button>
   </header>
 
-  <div class="sec-label">Список дежурных</div>
+  <div class="sec-row">
+    <div class="sec-label">Список дежурных</div>
+    <button class="copy-btn" onclick="copyCounts()" aria-label="Скопировать счётчики">
+      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+    </button>
+  </div>
   <div class="duty-list" id="dutyList"></div>
 
   <div class="sec-label">Должники</div>
@@ -765,6 +779,28 @@ function applyEdit() {
 document.getElementById('editInput').addEventListener('keydown', function(e){
   if (e.key === 'Enter') applyEdit();
 });
+
+// ── COPY COUNTS ───────────────────────────────────────────────────────────────
+function copyCounts() {
+  var lines = [];
+  PAIRS.forEach(function(p){
+    lines.push(p.a + ' - ' + (S.counts[p.a] || 0));
+    lines.push(p.b + ' - ' + (S.counts[p.b] || 0));
+  });
+  var text = lines.join('\n');
+  function ok(){ toast('Счётчики скопированы'); haptic('done'); }
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    var r = false; try { r = document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+    if (r) ok(); else toast('Не удалось скопировать');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback);
+  else fallback();
+}
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
 var _tt;
