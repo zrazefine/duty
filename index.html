@@ -678,7 +678,7 @@ function haptic(kind) {
   } catch(e) {}
 }
 
-// прокрутка случайных фамилий с замедлением, потом посадка на выбранного должника
+// прокрутка фамилий должников с замедлением, потом посадка на выбранного должника
 function randomize(){
   if (_randBusy) return;
   if (!S.debtors.length){ toast('Должников нет'); return; }
@@ -688,7 +688,7 @@ function randomize(){
   var nameEl = document.getElementById('randName');
   var subEl  = document.getElementById('randSub');
   var btn = document.getElementById('randBtn');
-  var names = []; PAIRS.forEach(function(p){ names.push(p.a, p.b); });
+  var names = S.debtors.map(function(d){ return d.name; }); // крутим только должников
 
   res.classList.remove('done'); res.classList.add('show');
   subEl.classList.remove('in'); subEl.textContent = '';
@@ -699,7 +699,7 @@ function randomize(){
   function step(){
     if (i >= steps) { land(); return; }
     var t = i / steps, delay = 50 + Math.pow(t, 2.4) * 230;
-    var nm; do { nm = names[Math.floor(Math.random()*names.length)]; } while (nm === last);
+    var nm; do { nm = names[Math.floor(Math.random()*names.length)]; } while (nm === last && names.length > 1);
     last = nm; nameEl.textContent = nm;
     nameEl.classList.remove('tick'); void nameEl.offsetWidth;
     nameEl.style.animationDuration = Math.round(delay*0.85)+'ms'; nameEl.classList.add('tick');
