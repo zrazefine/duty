@@ -263,7 +263,6 @@
 <div id="mainApp">
   <header>
     <span class="hdr-title">График Дежурства</span>
-    <button class="dots-btn" id="soundBtn" onclick="toggleSound(event)" aria-label="Звук"></button>
     <button class="dots-btn" onclick="openHeaderMenu(event)">⋯</button>
   </header>
 
@@ -312,76 +311,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ── SOUND ENGINE (Web Audio, синтезированные звуки, без файлов) ───────────────
-var soundOn = (function(){
-  try { var v = localStorage.getItem('duty_sound_v1'); return v === null ? true : v === '1'; }
-  catch(e){ return true; }
-})();
-var _actx = null;
-function actx(){
-  if (!_actx) {
-    try { _actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ return null; }
-  }
-  if (_actx.state === 'suspended') { try { _actx.resume(); } catch(e){} }
-  return _actx;
-}
-function tone(o){
-  if (!soundOn) return;
-  var ctx = actx(); if (!ctx) return;
-  var t0 = ctx.currentTime, dur = o.dur || 0.12;
-  var osc = ctx.createOscillator(), g = ctx.createGain();
-  osc.type = o.type || 'sine';
-  osc.frequency.setValueAtTime(o.freq, t0);
-  if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(o.slideTo,1), t0+dur);
-  var vol = o.vol != null ? o.vol : 0.1;
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(vol, t0+0.008);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
-  osc.connect(g); g.connect(ctx.destination);
-  osc.start(t0); osc.stop(t0+dur+0.02);
-}
-function noiseBurst(o){
-  if (!soundOn) return;
-  var ctx = actx(); if (!ctx) return;
-  var dur = o.dur || 0.15;
-  var buf = ctx.createBuffer(1, Math.max(1,Math.round(ctx.sampleRate*dur)), ctx.sampleRate);
-  var data = buf.getChannelData(0);
-  for (var i=0;i<data.length;i++){ data[i] = (Math.random()*2-1) * Math.pow(1-i/data.length, 2); }
-  var src = ctx.createBufferSource(); src.buffer = buf;
-  var filt = ctx.createBiquadFilter(); filt.type = o.filterType || 'lowpass'; filt.frequency.value = o.freq || 1200;
-  var g = ctx.createGain(); g.gain.value = o.vol != null ? o.vol : 0.12;
-  src.connect(filt); filt.connect(g); g.connect(ctx.destination);
-  src.start();
-}
-// тематический набор: свой звук под каждое действие
-var sfx = {
-  tap:     function(){ tone({freq:720, type:'triangle', dur:0.045, vol:0.06}); },
-  open:    function(){ tone({freq:520, slideTo:780, type:'sine', dur:0.09, vol:0.06}); },
-  close:   function(){ tone({freq:460, slideTo:280, type:'sine', dur:0.07, vol:0.05}); },
-  plus:    function(){ tone({freq:520, slideTo:920, type:'triangle', dur:0.09, vol:0.1}); },
-  minus:   function(){ tone({freq:520, slideTo:260, type:'triangle', dur:0.1, vol:0.1}); },
-  remove:  function(){ tone({freq:420, slideTo:110, type:'sawtooth', dur:0.18, vol:0.07}); noiseBurst({dur:0.12, freq:900, vol:0.05}); },
-  copy:    function(){ tone({freq:660, dur:0.05, vol:0.08}); setTimeout(function(){ tone({freq:880, dur:0.08, vol:0.08}); }, 60); },
-  warning: function(){ tone({freq:300, type:'square', dur:0.12, vol:0.08}); },
-  reset:   function(){ noiseBurst({dur:0.3, freq:500, vol:0.13}); tone({freq:160, slideTo:55, type:'sawtooth', dur:0.3, vol:0.09}); },
-  success: function(){ [523.25,659.25,783.99].forEach(function(f,i){ setTimeout(function(){ tone({freq:f, type:'triangle', dur:0.14, vol:0.08}); }, i*70); }); },
-  reelTick:function(){ tone({freq:900, type:'square', dur:0.02, vol:0.03}); },
-  land:    function(){ [392,523.25,659.25,783.99].forEach(function(f,i){ setTimeout(function(){ tone({freq:f, type:'triangle', dur:0.18, vol:0.09}); }, i*55); }); }
-};
-function setSound(on){
-  soundOn = on;
-  try { localStorage.setItem('duty_sound_v1', on ? '1' : '0'); } catch(e){}
-  updateSoundBtn();
-  if (on) tone({freq:700, dur:0.06, vol:0.08});
-}
-function toggleSound(e){ if (e) e.stopPropagation(); setSound(!soundOn); }
-function updateSoundBtn(){
-  var b = document.getElementById('soundBtn'); if (!b) return;
-  b.innerHTML = soundOn
-    ? '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 5.5a9 9 0 0 1 0 13"/></svg>'
-    : '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>';
-}
-
 // ── PAIRS ─────────────────────────────────────────────────────────────────────
 var PAIRS = [
   {id:1,  a:'Апин',      b:'Кондрова'},
@@ -624,11 +553,9 @@ function showMenu() {
 }
 
 function closeMenu() {
-  var wasOpen = document.getElementById('overlay').classList.contains('active');
   document.getElementById('ctxMenu').classList.remove('open');
   document.getElementById('overlay').classList.remove('active');
   _subOpen = false;
-  if (wasOpen) sfx.close();
 }
 
 function buildMenu(headerText, items) {
@@ -682,14 +609,14 @@ function pairPersonRow(pairId, name, slot) {
   }
   row.appendChild(nm); row.appendChild(cnt);
   row.appendChild(btn('plus', '+', function(){
-    S.counts[name] = (S.counts[name] || 0) + 1; save(); render(); upd(); sfx.plus();
+    S.counts[name] = (S.counts[name] || 0) + 1; save(); render(); upd();
   }));
   row.appendChild(btn('minus', '\u2212', function(){
-    if ((S.counts[name] || 0) > 0) { S.counts[name]--; save(); render(); upd(); sfx.minus(); }
+    if ((S.counts[name] || 0) > 0) { S.counts[name]--; save(); render(); upd(); }
   }));
   row.appendChild(btn('x', '\u2715', function(){
-    if (addDebtor(name, pairId, slot)) { save(); render(); toast(name+' — в пропустившие'); sfx.remove(); }
-    else { toast(name+' уже в пропустивших'); sfx.warning(); }
+    if (addDebtor(name, pairId, slot)) { save(); render(); toast(name+' — в пропустившие'); }
+    else toast(name+' уже в пропустивших');
   }));
   upd();
   return row;
@@ -697,7 +624,6 @@ function pairPersonRow(pairId, name, slot) {
 
 function openPairMenu(e, id) {
   e.stopPropagation();
-  sfx.open();
   var p = PAIRS.filter(function(x){ return x.id===id; })[0];
   posMenu(e);
   buildMenu('Пара '+id, []);
@@ -711,7 +637,6 @@ function openPairMenu(e, id) {
 // ── HEADER MENU ───────────────────────────────────────────────────────────────
 function openHeaderMenu(e) {
   e.stopPropagation();
-  sfx.open();
   posMenu(e);
   buildMenu('Управление', []);
   var it = document.createElement('div');
@@ -724,10 +649,9 @@ function openHeaderMenu(e) {
     if (!armed) {
       armed = true; it.innerHTML = '<span>!</span> Точно стереть?';
       timer = setTimeout(function(){ armed = false; it.innerHTML = idle; }, 3000);
-      sfx.warning();
       return;
     }
-    clearTimeout(timer); doResetAll(); closeMenu(); sfx.reset();
+    clearTimeout(timer); doResetAll(); closeMenu();
   };
   document.getElementById('ctxBody').appendChild(it);
   showMenu();
@@ -736,12 +660,11 @@ function openHeaderMenu(e) {
 // ── DEBTOR MENU ───────────────────────────────────────────────────────────────
 function openDebtorMenu(e, idx) {
   e.stopPropagation();
-  sfx.open();
   var d = S.debtors[idx];
   posMenu(e);
   buildMenu(d.name, [
-    {label:'Продежурил', cls:'green', icon:'✓', fn:function(){ markDebtorDone(idx); closeMenu(); sfx.success(); }},
-    {label:'Удалить',    cls:'red',   icon:'✕', fn:function(){ deleteDebtor(idx);   closeMenu(); sfx.remove(); }}
+    {label:'Продежурил', cls:'green', icon:'✓', fn:function(){ markDebtorDone(idx); closeMenu(); }},
+    {label:'Удалить',    cls:'red',   icon:'✕', fn:function(){ deleteDebtor(idx);   closeMenu(); }}
   ]);
   showMenu();
 }
@@ -789,8 +712,7 @@ function haptic(kind) {
 // прокрутка фамилий пропустивших с замедлением, потом посадка на выбранного пропустившего
 function randomize(){
   if (_randBusy) return;
-  if (!S.debtors.length){ toast('Пропустивших нет'); sfx.warning(); return; }
-  sfx.open();
+  if (!S.debtors.length){ toast('Пропустивших нет'); return; }
   var pick = S.debtors[Math.floor(Math.random()*S.debtors.length)];
   var pair = PAIRS.filter(function(p){ return p.id===pick.pairId; })[0];
   var res = document.getElementById('randResult');
@@ -812,7 +734,7 @@ function randomize(){
     last = nm; nameEl.textContent = nm;
     nameEl.classList.remove('tick'); void nameEl.offsetWidth;
     nameEl.style.animationDuration = Math.round(delay*0.85)+'ms'; nameEl.classList.add('tick');
-    haptic('tick'); sfx.reelTick();
+    haptic('tick');
     i++; _randT = setTimeout(step, delay);
   }
   function land(){
@@ -821,7 +743,7 @@ function randomize(){
     nameEl.textContent = pick.name; nameEl.classList.add('land');
     subEl.textContent = 'пара '+pick.pairId+' · '+pair.a+' & '+pair.b; subEl.classList.add('in');
     void res.offsetWidth; res.classList.add('done');
-    burst(); haptic('done'); sfx.land();
+    burst(); haptic('done');
     _randBusy = false; btn.disabled = false;
   }
   step();
@@ -844,13 +766,11 @@ function hideRand(){
   clearTimeout(_randT); _randBusy = false;
   var b = document.getElementById('randBtn'); if (b) b.disabled = false;
   document.getElementById('randResult').classList.remove('show','done');
-  sfx.close();
 }
 
 // ── EDIT COUNT ────────────────────────────────────────────────────────────────
 var _editName = null;
 function openEdit(name) {
-  sfx.open();
   _editName = name;
   document.getElementById('editTitle').textContent = name + ' — число дежурств';
   var inp = document.getElementById('editInput');
@@ -861,16 +781,14 @@ function openEdit(name) {
 function closeEdit() {
   document.getElementById('editBg').classList.remove('show');
   _editName = null;
-  sfx.close();
 }
 function applyEdit() {
   var v = parseInt(document.getElementById('editInput').value, 10);
-  if (isNaN(v) || v < 0 || v > 9999) { toast('Введи число от 0 до 9999'); sfx.warning(); return; }
+  if (isNaN(v) || v < 0 || v > 9999) { toast('Введи число от 0 до 9999'); return; }
   var name = _editName;
   S.counts[name] = v;
   save(); render(); closeEdit();
   toast(name + ': ' + v);
-  sfx.copy();
 }
 document.getElementById('editInput').addEventListener('keydown', function(e){
   if (e.key === 'Enter') applyEdit();
@@ -884,7 +802,7 @@ function copyCounts() {
     lines.push(p.b + ' - ' + (S.counts[p.b] || 0));
   });
   var text = lines.join('\n');
-  function ok(){ toast('Счётчики скопированы'); haptic('done'); sfx.copy(); }
+  function ok(){ toast('Счётчики скопированы'); haptic('done'); }
   function fallback(){
     var ta = document.createElement('textarea');
     ta.value = text; ta.setAttribute('readonly', '');
@@ -892,7 +810,7 @@ function copyCounts() {
     document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
     var r = false; try { r = document.execCommand('copy'); } catch(e) {}
     document.body.removeChild(ta);
-    if (r) ok(); else { toast('Не удалось скопировать'); sfx.warning(); }
+    if (r) ok(); else toast('Не удалось скопировать');
   }
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback);
   else fallback();
@@ -911,7 +829,6 @@ if (TG) {
   TG.ready();
   TG.expand();
 }
-updateSoundBtn();
 checkAccess();
 document.addEventListener('visibilitychange', function(){
   if (document.hidden) return;
