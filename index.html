@@ -274,14 +274,14 @@
   </div>
   <div class="duty-list" id="dutyList"></div>
 
-  <div class="sec-label">Должники</div>
+  <div class="sec-label">Пропустившие</div>
   <div class="debtors-list" id="debtorsList"></div>
 
   <div class="rand-wrap">
     <button class="rand-btn" id="randBtn" onclick="randomize()">🎲 Рандомайзер</button>
     <div class="rand-result" id="randResult">
       <button class="rr-close" onclick="hideRand()">✕</button>
-      <div class="rr-label">Случайный должник</div>
+      <div class="rr-label">Случайный пропустивший</div>
       <div class="rr-reel"><div class="rr-name" id="randName">—</div></div>
       <div class="rr-sub" id="randSub"></div>
       <div class="burst" id="randBurst"></div>
@@ -511,7 +511,7 @@ function renderDebtors() {
   var el = document.getElementById('debtorsList');
   el.innerHTML = '';
   if (!S.debtors.length) {
-    el.innerHTML = '<div class="empty-msg">Должников нет</div>';
+    el.innerHTML = '<div class="empty-msg">Пропустивших нет</div>';
     return;
   }
   S.debtors.forEach(function(d, i) {
@@ -615,8 +615,8 @@ function pairPersonRow(pairId, name, slot) {
     if ((S.counts[name] || 0) > 0) { S.counts[name]--; save(); render(); upd(); }
   }));
   row.appendChild(btn('x', '\u2715', function(){
-    if (addDebtor(name, pairId, slot)) { save(); render(); toast(name+' — в должники'); }
-    else toast(name+' уже в должниках');
+    if (addDebtor(name, pairId, slot)) { save(); render(); toast(name+' — в пропустившие'); }
+    else toast(name+' уже в пропустивших');
   }));
   upd();
   return row;
@@ -678,12 +678,12 @@ function markDebtorDone(idx) {
   toast(d.name+' — отдежурил ✓');
 }
 
-// просто убрать из должников, без +1 к счётчику
+// просто убрать из пропустивших, без +1 к счётчику
 function deleteDebtor(idx) {
   var d = S.debtors[idx];
   S.debtors.splice(idx,1);
   save(); render();
-  toast(d.name+' — удалён из должников');
+  toast(d.name+' — удалён из пропустивших');
 }
 
 function addDebtor(name,pairId,slot){
@@ -692,7 +692,7 @@ function addDebtor(name,pairId,slot){
   return !exists;
 }
 
-// стереть всё: счётчики в ноль и список должников пустой
+// стереть всё: счётчики в ноль и список пропустивших пустой
 function doResetAll(){
   S={ debtors:[], counts:defaultCounts() };
   save(); render(); hideRand();
@@ -709,17 +709,17 @@ function haptic(kind) {
   } catch(e) {}
 }
 
-// прокрутка фамилий должников с замедлением, потом посадка на выбранного должника
+// прокрутка фамилий пропустивших с замедлением, потом посадка на выбранного пропустившего
 function randomize(){
   if (_randBusy) return;
-  if (!S.debtors.length){ toast('Должников нет'); return; }
+  if (!S.debtors.length){ toast('Пропустивших нет'); return; }
   var pick = S.debtors[Math.floor(Math.random()*S.debtors.length)];
   var pair = PAIRS.filter(function(p){ return p.id===pick.pairId; })[0];
   var res = document.getElementById('randResult');
   var nameEl = document.getElementById('randName');
   var subEl  = document.getElementById('randSub');
   var btn = document.getElementById('randBtn');
-  var names = S.debtors.map(function(d){ return d.name; }); // крутим только должников
+  var names = S.debtors.map(function(d){ return d.name; }); // крутим только пропустивших
 
   res.classList.remove('done'); res.classList.add('show');
   subEl.classList.remove('in'); subEl.textContent = '';
