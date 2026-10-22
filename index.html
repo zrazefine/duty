@@ -23,24 +23,44 @@
 
   /* PASSWORD */
   #passScreen{
-    position:fixed;inset:0;z-index:9999;background:#000;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:20px;padding:32px;
+    position:fixed;inset:0;z-index:9999;overflow:hidden;
+    background:radial-gradient(120% 80% at 50% 0%,#12161f 0%,#06070b 55%,#000 100%);
+    display:flex;align-items:center;justify-content:center;padding:24px;
   }
-  #passScreen h1{font-size:18px;font-weight:600}
-  #passScreen p{font-size:13px;color:var(--text-muted)}
+  #snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .pass-card{
+    position:relative;width:100%;max-width:320px;
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+    padding:30px 22px 24px;
+    background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);
+    border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.6);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  }
+  .pass-badge{
+    width:46px;height:46px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);
+    display:flex;align-items:center;justify-content:center;margin-bottom:2px;
+  }
+  .pass-badge svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  #passScreen h1{font-size:20px;font-weight:600;letter-spacing:.3px;text-align:center}
+  #passScreen p{font-size:13px;color:var(--text-dim);text-align:center;margin-top:-6px}
   #passInput{
-    background:var(--surface2);border:1px solid var(--border2);
-    border-radius:8px;outline:none;color:var(--text);
-    font-size:15px;padding:13px 14px;width:100%;max-width:280px;
-    letter-spacing:2px;font-family:monospace;
+    width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;outline:none;color:var(--text);
+    font-size:16px;padding:13px 14px;text-align:center;
+    letter-spacing:3px;font-family:monospace;margin-top:4px;
+    transition:border-color .2s,box-shadow .2s;
   }
+  #passInput:focus{border-color:rgba(255,255,255,.4);box-shadow:0 0 0 3px rgba(255,255,255,.08)}
   #passInput::placeholder{letter-spacing:0;font-family:inherit;color:var(--text-muted);font-size:14px}
-  #passErr{font-size:12px;color:var(--red);height:16px;text-align:center}
+  #passInput.shake{animation:shake .35s}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+  #passScreen p.err{color:var(--red)}
+  #passInput.bad{border-color:rgba(239,83,80,.6)}
   .pass-btn{
-    background:#fff;color:#000;border:none;border-radius:8px;
-    padding:13px;width:100%;max-width:280px;
-    font-size:14px;font-weight:600;cursor:pointer;
+    background:#fff;color:#000;border:none;border-radius:12px;
+    padding:13px;width:100%;margin-top:-4px;
+    font-size:15px;font-weight:600;cursor:pointer;
   }
   .pass-btn:active{opacity:.7}
 
@@ -101,22 +121,42 @@
     padding:13px;font-size:14px;font-weight:600;cursor:pointer;
   }
   .rand-btn:active{opacity:.7}
+  .rand-btn:disabled{opacity:.5;cursor:default}
   .rand-result{
-    margin-top:10px;background:var(--surface2);border:1px solid var(--border2);
-    border-radius:8px;padding:14px 14px 14px 14px;
-    display:none;flex-direction:column;gap:3px;position:relative;
+    margin-top:10px;position:relative;overflow:hidden;
+    background:radial-gradient(120% 140% at 50% 0%,#1b1b1b 0%,var(--surface2) 60%);
+    border:1px solid var(--border2);border-radius:14px;padding:16px 14px 14px;
+    display:none;flex-direction:column;align-items:center;text-align:center;
   }
-  .rand-result.show{display:flex}
-  .rr-label{font-size:10px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase}
-  .rr-name{font-size:20px;font-weight:700}
-  .rr-sub{font-size:12px;color:var(--text-muted)}
-  .rr-row{display:flex;align-items:center;gap:8px}
+  .rand-result.show{display:flex;animation:rrIn .3s ease-out}
+  .rand-result.done{border-color:rgba(239,83,80,.5);animation:ringPulse .9s ease-out}
+  .rr-label{font-size:10px;color:var(--text-muted);letter-spacing:1.6px;text-transform:uppercase}
+  .rr-reel{height:46px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:10px 0 4px}
+  .rr-name{font-size:28px;font-weight:700;letter-spacing:.3px;color:var(--text-dim);white-space:nowrap}
+  .rr-name.tick{animation:tick 120ms ease-out}
+  .rr-name.land{color:var(--red);text-shadow:0 0 18px rgba(239,83,80,.45);animation:land .6s cubic-bezier(.34,1.56,.64,1)}
+  .rr-sub{font-size:12px;color:var(--text-muted);min-height:16px;opacity:0;transition:opacity .4s}
+  .rr-sub.in{opacity:1}
   .rr-close{
-    background:none;border:none;color:var(--text-muted);font-size:16px;
+    position:absolute;top:8px;right:8px;
+    background:none;border:none;color:var(--text-muted);font-size:15px;
     cursor:pointer;width:28px;height:28px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
   }
   .rr-close:active{background:var(--border)}
+  .burst{position:absolute;inset:0;pointer-events:none}
+  .spark{
+    position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;
+    animation:spark .8s ease-out forwards;
+  }
+  @keyframes rrIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes tick{from{transform:translateY(-55%);opacity:0;filter:blur(2px)}to{transform:none;opacity:1;filter:none}}
+  @keyframes land{0%{transform:scale(.8);opacity:.3}55%{transform:scale(1.18);opacity:1}100%{transform:scale(1)}}
+  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(239,83,80,.45)}100%{box-shadow:0 0 0 18px rgba(239,83,80,0)}}
+  @keyframes spark{
+    from{transform:translate(-50%,-50%) scale(1);opacity:1}
+    to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.3);opacity:0}
+  }
 
   /* OVERLAY */
   .overlay{position:fixed;inset:0;z-index:200;display:none}
@@ -155,6 +195,21 @@
   .sub-item:last-child{border-bottom:none}
   .sub-item:active{background:var(--border)}
 
+  /* PAIR MENU ROWS */
+  .ctx-menu.wide{min-width:272px}
+  .p-row{display:flex;align-items:center;gap:6px;padding:8px 10px 8px 13px;border-bottom:1px solid var(--border)}
+  .p-row:last-child{border-bottom:none}
+  .p-name{flex:1;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .p-cnt{font-size:12px;font-family:monospace;color:var(--text-dim);min-width:22px;text-align:center}
+  .p-btn{
+    width:34px;height:34px;border-radius:8px;border:1px solid var(--border2);background:none;
+    color:var(--text);font-size:18px;line-height:1;cursor:pointer;touch-action:manipulation;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .p-btn:active{background:var(--border)}
+  .p-btn.plus{color:var(--green)}
+  .p-btn.x{color:var(--red)}
+
   /* TOAST */
   /* EDIT MODAL */
   .modal-bg{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.7);display:none;align-items:flex-start;justify-content:center;padding-top:18vh}
@@ -186,11 +241,16 @@
 
 <!-- PASSWORD -->
 <div id="passScreen">
-  <h1>График Дежурства</h1>
-  <p>Введите пароль для доступа</p>
-  <input id="passInput" type="password" placeholder="Пароль" autocomplete="off"/>
-  <div id="passErr"></div>
-  <button class="pass-btn" onclick="checkPass()">Войти</button>
+  <canvas id="snow"></canvas>
+  <div class="pass-card">
+    <div class="pass-badge">
+      <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    </div>
+    <h1>График Дежурства</h1>
+    <p id="passSub">Введите пароль для доступа</p>
+    <input id="passInput" type="password" placeholder="Пароль" autocomplete="off"/>
+    <button class="pass-btn" onclick="checkPass()">Войти</button>
+  </div>
 </div>
 
 <!-- MAIN APP -->
@@ -207,16 +267,13 @@
   <div class="debtors-list" id="debtorsList"></div>
 
   <div class="rand-wrap">
-    <button class="rand-btn" onclick="randomize()">🎲 Рандомайзер</button>
+    <button class="rand-btn" id="randBtn" onclick="randomize()">🎲 Рандомайзер</button>
     <div class="rand-result" id="randResult">
+      <button class="rr-close" onclick="hideRand()">✕</button>
       <div class="rr-label">Случайный должник</div>
-      <div class="rr-row">
-        <div>
-          <div class="rr-name" id="randName">—</div>
-          <div class="rr-sub"  id="randSub"></div>
-        </div>
-        <button class="rr-close" onclick="hideRand()">✕</button>
-      </div>
+      <div class="rr-reel"><div class="rr-name" id="randName">—</div></div>
+      <div class="rr-sub" id="randSub"></div>
+      <div class="burst" id="randBurst"></div>
     </div>
   </div>
 </div>
@@ -332,18 +389,57 @@ function save() {
 // initialise S immediately
 S = loadState();
 
+// ── SNOW (экран пароля, редкий, белые точки) ─────────────────────────────────
+var _snowOn = true;
+(function(){
+  var cv = document.getElementById('snow'); if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2), W = 0, H = 0, flakes = [];
+  function size(){
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = W*dpr; cv.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function mk(initial){
+    return { x:Math.random()*W, y:initial?Math.random()*H:-6, r:0.8+Math.random()*1.5,
+             v:0.25+Math.random()*0.55, a:0.35+Math.random()*0.55, ph:Math.random()*6.28, sw:0.2+Math.random()*0.5 };
+  }
+  size();
+  var N = Math.round(Math.min(45, Math.max(24, W*H/9000)));
+  for (var i=0;i<N;i++) flakes.push(mk(true));
+  window.addEventListener('resize', size);
+  function tick(t){
+    if (!_snowOn) { window.removeEventListener('resize', size); return; }
+    ctx.clearRect(0,0,W,H); ctx.fillStyle = '#fff';
+    for (var i=0;i<flakes.length;i++){
+      var f = flakes[i];
+      f.y += f.v; f.x += Math.sin(t/1500 + f.ph) * f.sw * 0.6;
+      if (f.y > H+6) { flakes[i] = f = mk(false); }
+      ctx.globalAlpha = f.a; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.2832); ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { _snowOn = false; return; }
+  requestAnimationFrame(tick);
+})();
+
 // ── PASSWORD ──────────────────────────────────────────────────────────────────
 function checkPass() {
   var v = document.getElementById('passInput').value;
   if (v === PASSWORD) {
+    _snowOn = false;
     document.getElementById('passScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     render();
   } else {
-    var err = document.getElementById('passErr');
-    err.textContent = 'Неверный пароль';
-    setTimeout(function(){ err.textContent=''; }, 2000);
-    document.getElementById('passInput').value = '';
+    var inp = document.getElementById('passInput');
+    var sub = document.getElementById('passSub');
+    inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake', 'bad');
+    sub.textContent = 'Неверный пароль'; sub.classList.add('err');
+    clearTimeout(window._pt);
+    window._pt = setTimeout(function(){
+      sub.textContent = 'Введите пароль для доступа'; sub.classList.remove('err'); inp.classList.remove('bad');
+    }, 2000);
+    inp.value = '';
   }
 }
 document.getElementById('passInput').addEventListener('keydown', function(e){
@@ -432,6 +528,7 @@ function closeMenu() {
 }
 
 function buildMenu(headerText, items) {
+  document.getElementById('ctxMenu').classList.remove('wide');
   document.getElementById('ctxHdr').textContent = headerText;
   var body = document.getElementById('ctxBody');
   body.innerHTML = '';
@@ -468,21 +565,41 @@ function buildMenu(headerText, items) {
 }
 
 // ── PAIR MENU ─────────────────────────────────────────────────────────────────
+// строка человека: число + «+» «−» «✕». меню не закрывается, жми сколько надо
+function pairPersonRow(pairId, name, slot) {
+  var row = document.createElement('div'); row.className = 'p-row';
+  var nm  = document.createElement('span'); nm.className = 'p-name'; nm.textContent = name;
+  var cnt = document.createElement('span'); cnt.className = 'p-cnt';
+  function upd(){ cnt.textContent = S.counts[name] || 0; }
+  function btn(cls, txt, fn){
+    var b = document.createElement('button'); b.className = 'p-btn '+cls; b.textContent = txt;
+    b.onclick = function(ev){ ev.stopPropagation(); fn(); };
+    return b;
+  }
+  row.appendChild(nm); row.appendChild(cnt);
+  row.appendChild(btn('plus', '+', function(){
+    S.counts[name] = (S.counts[name] || 0) + 1; save(); render(); upd();
+  }));
+  row.appendChild(btn('minus', '\u2212', function(){
+    if ((S.counts[name] || 0) > 0) { S.counts[name]--; save(); render(); upd(); }
+  }));
+  row.appendChild(btn('x', '\u2715', function(){
+    if (addDebtor(name, pairId, slot)) { save(); render(); toast(name+' — в должники'); }
+    else toast(name+' уже в должниках');
+  }));
+  upd();
+  return row;
+}
+
 function openPairMenu(e, id) {
   e.stopPropagation();
   var p = PAIRS.filter(function(x){ return x.id===id; })[0];
   posMenu(e);
-  buildMenu('Пара '+id, [
-    {
-      type:'sub', label:'Продежурили',
-      children:[
-        {label:'Оба: '+p.a+' & '+p.b, fn:function(){ markDuty(id,'both'); closeMenu(); }},
-        {label:'Только '+p.a,          fn:function(){ markDuty(id,'a');    closeMenu(); }},
-        {label:'Только '+p.b,          fn:function(){ markDuty(id,'b');    closeMenu(); }}
-      ]
-    },
-    {label:'Обнулить счётчики пары', cls:'red', icon:'↩', fn:function(){ resetPairCounts(id); closeMenu(); }}
-  ]);
+  buildMenu('Пара '+id, []);
+  document.getElementById('ctxMenu').classList.add('wide');
+  var body = document.getElementById('ctxBody');
+  body.appendChild(pairPersonRow(id, p.a, 'a'));
+  body.appendChild(pairPersonRow(id, p.b, 'b'));
   showMenu();
 }
 
@@ -490,9 +607,22 @@ function openPairMenu(e, id) {
 function openHeaderMenu(e) {
   e.stopPropagation();
   posMenu(e);
-  buildMenu('Управление', [
-    {label:'Обнулить все счётчики', cls:'red', icon:'✕', fn:function(){ doResetAll(); closeMenu(); }}
-  ]);
+  buildMenu('Управление', []);
+  var it = document.createElement('div');
+  it.className = 'ctx-item red';
+  var idle = '<span>✕</span> Стереть всё';
+  it.innerHTML = idle;
+  var armed = false, timer;
+  // защита от случайного нажатия: второй тап в течение 3 с
+  it.onclick = function(){
+    if (!armed) {
+      armed = true; it.innerHTML = '<span>!</span> Точно стереть?';
+      timer = setTimeout(function(){ armed = false; it.innerHTML = idle; }, 3000);
+      return;
+    }
+    clearTimeout(timer); doResetAll(); closeMenu();
+  };
+  document.getElementById('ctxBody').appendChild(it);
   showMenu();
 }
 
@@ -509,19 +639,6 @@ function openDebtorMenu(e, idx) {
 }
 
 // ── ACTIONS ───────────────────────────────────────────────────────────────────
-// кто продежурил: +1 к счётчику, без подсветки; второй из пары уходит в должники
-// из должников убирает только markDebtorDone (меню должника)
-function markDuty(id, who) {
-  var p = PAIRS.filter(function(x){ return x.id===id; })[0];
-  if (who==='both'||who==='a') S.counts[p.a]=(S.counts[p.a]||0)+1;
-  if (who==='both'||who==='b') S.counts[p.b]=(S.counts[p.b]||0)+1;
-  if (who==='a') addDebtor(p.b,id,'b');
-  if (who==='b') addDebtor(p.a,id,'a');
-  save(); render();
-  var msg = who==='both'?(p.a+' и '+p.b+' — отмечены'):who==='a'?(p.a+' — отдежурил'):(p.b+' — отдежурил');
-  toast(msg);
-}
-
 function markDebtorDone(idx) {
   var d = S.debtors[idx];
   S.counts[d.name] = (S.counts[d.name]||0)+1;
@@ -541,33 +658,83 @@ function deleteDebtor(idx) {
 function addDebtor(name,pairId,slot){
   var exists = S.debtors.filter(function(d){ return d.name===name&&d.pairId===pairId; }).length>0;
   if (!exists) S.debtors.push({name:name,pairId:pairId,slot:slot});
+  return !exists;
 }
 
-function resetPairCounts(id){
-  var p = PAIRS.filter(function(x){ return x.id===id; })[0];
-  S.counts[p.a]=0; S.counts[p.b]=0;
-  save(); render();
-  toast('Пара '+id+' обнулена');
-}
-
-// счётчики в ноль, должники остаются
+// стереть всё: счётчики в ноль и список должников пустой
 function doResetAll(){
-  S={ debtors:S.debtors, counts:defaultCounts() };
-  save(); render();
-  toast('Счётчики обнулены · должники остались');
+  S={ debtors:[], counts:defaultCounts() };
+  save(); render(); hideRand();
+  toast('Всё стёрто');
 }
 
 // ── RANDOMIZER ────────────────────────────────────────────────────────────────
+var _randBusy = false, _randT = null;
+
+function haptic(kind) {
+  try {
+    var h = TG && TG.HapticFeedback; if (!h) return;
+    if (kind === 'done') h.notificationOccurred('success'); else h.impactOccurred('light');
+  } catch(e) {}
+}
+
+// прокрутка случайных фамилий с замедлением, потом посадка на выбранного должника
 function randomize(){
+  if (_randBusy) return;
   if (!S.debtors.length){ toast('Должников нет'); return; }
   var pick = S.debtors[Math.floor(Math.random()*S.debtors.length)];
   var pair = PAIRS.filter(function(p){ return p.id===pick.pairId; })[0];
-  document.getElementById('randName').textContent = pick.name;
-  document.getElementById('randSub').textContent  = 'пара '+pick.pairId+' · '+pair.a+' & '+pair.b;
-  document.getElementById('randResult').classList.add('show');
+  var res = document.getElementById('randResult');
+  var nameEl = document.getElementById('randName');
+  var subEl  = document.getElementById('randSub');
+  var btn = document.getElementById('randBtn');
+  var names = []; PAIRS.forEach(function(p){ names.push(p.a, p.b); });
+
+  res.classList.remove('done'); res.classList.add('show');
+  subEl.classList.remove('in'); subEl.textContent = '';
+  nameEl.classList.remove('land');
+  _randBusy = true; btn.disabled = true;
+
+  var steps = 18, i = 0, last = '';
+  function step(){
+    if (i >= steps) { land(); return; }
+    var t = i / steps, delay = 50 + Math.pow(t, 2.4) * 230;
+    var nm; do { nm = names[Math.floor(Math.random()*names.length)]; } while (nm === last);
+    last = nm; nameEl.textContent = nm;
+    nameEl.classList.remove('tick'); void nameEl.offsetWidth;
+    nameEl.style.animationDuration = Math.round(delay*0.85)+'ms'; nameEl.classList.add('tick');
+    haptic('tick');
+    i++; _randT = setTimeout(step, delay);
+  }
+  function land(){
+    nameEl.classList.remove('tick'); nameEl.style.animationDuration = '';
+    void nameEl.offsetWidth;
+    nameEl.textContent = pick.name; nameEl.classList.add('land');
+    subEl.textContent = 'пара '+pick.pairId+' · '+pair.a+' & '+pair.b; subEl.classList.add('in');
+    void res.offsetWidth; res.classList.add('done');
+    burst(); haptic('done');
+    _randBusy = false; btn.disabled = false;
+  }
+  step();
 }
+
+function burst(){
+  var box = document.getElementById('randBurst'); box.innerHTML = '';
+  for (var i=0;i<16;i++){
+    var sp = document.createElement('span'); sp.className = 'spark';
+    var a = (i/16)*6.2832 + Math.random()*0.4, d = 55 + Math.random()*45;
+    sp.style.setProperty('--dx', Math.round(Math.cos(a)*d)+'px');
+    sp.style.setProperty('--dy', Math.round(Math.sin(a)*d*0.6)+'px');
+    sp.style.background = (i%3===0) ? '#ef5350' : '#fff';
+    box.appendChild(sp);
+  }
+  setTimeout(function(){ box.innerHTML = ''; }, 900);
+}
+
 function hideRand(){
-  document.getElementById('randResult').classList.remove('show');
+  clearTimeout(_randT); _randBusy = false;
+  var b = document.getElementById('randBtn'); if (b) b.disabled = false;
+  document.getElementById('randResult').classList.remove('show','done');
 }
 
 // ── EDIT COUNT ────────────────────────────────────────────────────────────────
