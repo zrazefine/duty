@@ -331,11 +331,14 @@ function actx(){
 // потом планируем звук (иначе он тихо "проглатывается").
 function ensureRunning(cb){
   var ctx = actx();
-  if (!ctx) { cb(null); return; }
+  if (!ctx) { warnNoAudio(); cb(null); return; }
   if (ctx.state === 'running') { cb(ctx); return; }
   try {
-    ctx.resume().then(function(){ cb(ctx); }, function(){ cb(ctx); });
-  } catch(e) { cb(ctx); }
+    ctx.resume().then(function(){
+      if (ctx.state !== 'running') warnNoAudio();
+      cb(ctx);
+    }, function(){ warnNoAudio(); cb(ctx); });
+  } catch(e) { warnNoAudio(); cb(ctx); }
 }
 function unlockAudio(){
   var ctx = actx(); if (!ctx) return;
@@ -383,19 +386,25 @@ function noiseBurst(o){
 }
 // тематический набор: свой звук под каждое действие
 var sfx = {
-  tap:     function(){ tone({freq:720, type:'triangle', dur:0.045, vol:0.06}); },
-  open:    function(){ tone({freq:520, slideTo:780, type:'sine', dur:0.09, vol:0.06}); },
-  close:   function(){ tone({freq:460, slideTo:280, type:'sine', dur:0.07, vol:0.05}); },
-  plus:    function(){ tone({freq:520, slideTo:920, type:'triangle', dur:0.09, vol:0.1}); },
-  minus:   function(){ tone({freq:520, slideTo:260, type:'triangle', dur:0.1, vol:0.1}); },
-  remove:  function(){ tone({freq:420, slideTo:110, type:'sawtooth', dur:0.18, vol:0.07}); noiseBurst({dur:0.12, freq:900, vol:0.05}); },
-  copy:    function(){ tone({freq:660, dur:0.05, vol:0.08}); setTimeout(function(){ tone({freq:880, dur:0.08, vol:0.08}); }, 60); },
-  warning: function(){ tone({freq:300, type:'square', dur:0.12, vol:0.08}); },
-  reset:   function(){ noiseBurst({dur:0.3, freq:500, vol:0.13}); tone({freq:160, slideTo:55, type:'sawtooth', dur:0.3, vol:0.09}); },
-  success: function(){ [523.25,659.25,783.99].forEach(function(f,i){ setTimeout(function(){ tone({freq:f, type:'triangle', dur:0.14, vol:0.08}); }, i*70); }); },
-  reelTick:function(){ tone({freq:900, type:'square', dur:0.02, vol:0.03}); },
-  land:    function(){ [392,523.25,659.25,783.99].forEach(function(f,i){ setTimeout(function(){ tone({freq:f, type:'triangle', dur:0.18, vol:0.09}); }, i*55); }); }
+  tap:     function(){ tone({freq:720, type:'triangle', dur:0.045, vol:0.18}); },
+  open:    function(){ tone({freq:520, slideTo:780, type:'sine', dur:0.09, vol:0.18}); },
+  close:   function(){ tone({freq:460, slideTo:280, type:'sine', dur:0.07, vol:0.15}); },
+  plus:    function(){ tone({freq:520, slideTo:920, type:'triangle', dur:0.09, vol:0.26}); },
+  minus:   function(){ tone({freq:520, slideTo:260, type:'triangle', dur:0.1, vol:0.26}); },
+  remove:  function(){ tone({freq:420, slideTo:110, type:'sawtooth', dur:0.18, vol:0.2}); noiseBurst({dur:0.12, freq:900, vol:0.14}); },
+  copy:    function(){ tone({freq:660, dur:0.05, vol:0.22}); setTimeout(function(){ tone({freq:880, dur:0.08, vol:0.22}); }, 60); },
+  warning: function(){ tone({freq:300, type:'square', dur:0.12, vol:0.22}); },
+  reset:   function(){ noiseBurst({dur:0.3, freq:500, vol:0.3}); tone({freq:160, slideTo:55, type:'sawtooth', dur:0.3, vol:0.24}); },
+  success: function(){ [523.25,659.25,783.99].forEach(function(f,i){ setTimeout(function(){ tone({freq:f, type:'triangle', dur:0.14, vol:0.22}); }, i*70); }); },
+  reelTick:function(){ tone({freq:900, type:'square', dur:0.02, vol:0.1}); },
+  land:    function(){ [392,523.25,659.25,783.99].forEach(function(f,i){ setTimeout(function(){ tone({freq:f, type:'triangle', dur:0.18, vol:0.24}); }, i*55); }); }
 };
+// если Web Audio в этом браузере вообще недоступен — говорим прямо, а не молчим
+var _audioWarned = false;
+function warnNoAudio(){
+  if (_audioWarned) return; _audioWarned = true;
+  toast('Браузер блокирует звук на этой странице');
+}
 function setSound(on){
   soundOn = on;
   try { localStorage.setItem('duty_sound_v1', on ? '1' : '0'); } catch(e){}
