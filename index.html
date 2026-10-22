@@ -257,6 +257,7 @@
     <p id="gateText"></p>
     <div id="gateId"></div>
   </div>
+  <audio id="gateTrack" src="track.mp3" preload="auto" playsinline></audio>
 </div>
 
 <!-- MAIN APP -->
@@ -566,6 +567,29 @@ function showGate(kind, uid) {
   idEl.textContent = uid ? (kind === 'setup' ? String(uid) : 'ID: ' + uid) : '';
   idEl.classList.toggle('big', kind === 'setup');
   document.getElementById('gate').style.display = 'flex';
+  if (kind === 'blocked') armGateTrack(); else disarmGateTrack();
+}
+
+// ── GATE TRACK (играет один раз, только на экране "Доступ заблокирован",
+// запускается первым тапом/кликом по этому экрану) ────────────────────────
+var _gateTrackPlayed = false;
+function _gateTrackHandler() {
+  if (_gateTrackPlayed) return;
+  _gateTrackPlayed = true;
+  var a = document.getElementById('gateTrack');
+  if (a) { try { a.currentTime = 0; a.play().catch(function(){}); } catch(e) {} }
+  disarmGateTrack();
+}
+function armGateTrack() {
+  if (_gateTrackPlayed) return;
+  var gateEl = document.getElementById('gate');
+  gateEl.addEventListener('touchstart', _gateTrackHandler, {capture:true, passive:true});
+  gateEl.addEventListener('click', _gateTrackHandler, {capture:true});
+}
+function disarmGateTrack() {
+  var gateEl = document.getElementById('gate');
+  gateEl.removeEventListener('touchstart', _gateTrackHandler, {capture:true});
+  gateEl.removeEventListener('click', _gateTrackHandler, {capture:true});
 }
 
 function showApp() {
