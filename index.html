@@ -322,36 +322,64 @@ function actx(){
   if (!_actx) {
     try { _actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ return null; }
   }
-  if (_actx.state === 'suspended') { try { _actx.resume(); } catch(e){} }
   return _actx;
 }
+// Telegram's in-app WebView (iOS особенно) часто создаёт AudioContext в состоянии
+// "suspended" и не "просыпается" от обычного resume() без явной привязки к жесту.
+// Поэтому: 1) глушим контекст как можно раньше первым же касанием/кликом,
+// 2) перед каждым звуком ждём, пока resume() реально завершится, и только
+// потом планируем звук (иначе он тихо "проглатывается").
+function ensureRunning(cb){
+  var ctx = actx();
+  if (!ctx) { cb(null); return; }
+  if (ctx.state === 'running') { cb(ctx); return; }
+  try {
+    ctx.resume().then(function(){ cb(ctx); }, function(){ cb(ctx); });
+  } catch(e) { cb(ctx); }
+}
+function unlockAudio(){
+  var ctx = actx(); if (!ctx) return;
+  // немой буфер — классический трюк для разблокировки звука в WebKit/WebView
+  try {
+    var b = ctx.createBuffer(1, 1, 22050);
+    var s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0);
+  } catch(e) {}
+  if (ctx.state === 'suspended') { try { ctx.resume(); } catch(e){} }
+}
+['touchstart','touchend','mousedown','pointerdown','click','keydown'].forEach(function(ev){
+  document.addEventListener(ev, unlockAudio, {capture:true, passive:true});
+});
 function tone(o){
   if (!soundOn) return;
-  var ctx = actx(); if (!ctx) return;
-  var t0 = ctx.currentTime, dur = o.dur || 0.12;
-  var osc = ctx.createOscillator(), g = ctx.createGain();
-  osc.type = o.type || 'sine';
-  osc.frequency.setValueAtTime(o.freq, t0);
-  if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(o.slideTo,1), t0+dur);
-  var vol = o.vol != null ? o.vol : 0.1;
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(vol, t0+0.008);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
-  osc.connect(g); g.connect(ctx.destination);
-  osc.start(t0); osc.stop(t0+dur+0.02);
+  ensureRunning(function(ctx){
+    if (!ctx) return;
+    var t0 = ctx.currentTime, dur = o.dur || 0.12;
+    var osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = o.type || 'sine';
+    osc.frequency.setValueAtTime(o.freq, t0);
+    if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(o.slideTo,1), t0+dur);
+    var vol = o.vol != null ? o.vol : 0.1;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t0); osc.stop(t0+dur+0.02);
+  });
 }
 function noiseBurst(o){
   if (!soundOn) return;
-  var ctx = actx(); if (!ctx) return;
-  var dur = o.dur || 0.15;
-  var buf = ctx.createBuffer(1, Math.max(1,Math.round(ctx.sampleRate*dur)), ctx.sampleRate);
-  var data = buf.getChannelData(0);
-  for (var i=0;i<data.length;i++){ data[i] = (Math.random()*2-1) * Math.pow(1-i/data.length, 2); }
-  var src = ctx.createBufferSource(); src.buffer = buf;
-  var filt = ctx.createBiquadFilter(); filt.type = o.filterType || 'lowpass'; filt.frequency.value = o.freq || 1200;
-  var g = ctx.createGain(); g.gain.value = o.vol != null ? o.vol : 0.12;
-  src.connect(filt); filt.connect(g); g.connect(ctx.destination);
-  src.start();
+  ensureRunning(function(ctx){
+    if (!ctx) return;
+    var dur = o.dur || 0.15;
+    var buf = ctx.createBuffer(1, Math.max(1,Math.round(ctx.sampleRate*dur)), ctx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i=0;i<data.length;i++){ data[i] = (Math.random()*2-1) * Math.pow(1-i/data.length, 2); }
+    var src = ctx.createBufferSource(); src.buffer = buf;
+    var filt = ctx.createBiquadFilter(); filt.type = o.filterType || 'lowpass'; filt.frequency.value = o.freq || 1200;
+    var g = ctx.createGain(); g.gain.value = o.vol != null ? o.vol : 0.12;
+    src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+    src.start();
+  });
 }
 // тематический набор: свой звук под каждое действие
 var sfx = {
