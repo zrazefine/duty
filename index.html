@@ -626,6 +626,7 @@ function showApp() {
   _owner = true;
   document.getElementById('gate').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
+  setEmojiMode(1); // в главном приложении всегда летают 🤫, а не снежинки
   render();
   cloudPull();
 }
