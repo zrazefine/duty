@@ -7,8 +7,10 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root {
-    --bg:#000; --surface:#0d0d0d; --surface2:#161616;
-    --border:#1e1e1e; --border2:#2a2a2a;
+    --bg:#000; --surface:rgba(255,255,255,.035); --surface2:rgba(255,255,255,.06);
+    --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.12);
+    --glass:rgba(255,255,255,.035); --glass-bd:rgba(255,255,255,.09);
+    --pop:rgba(16,19,27,.94);
     --text:#fff; --text-muted:#555; --text-dim:#888;
     --green:#4caf50; --red:#ef5350;
   }
@@ -21,13 +23,18 @@
     padding-top:env(safe-area-inset-top,0px);
   }
 
+  /* BACKGROUND + SNOW (как на экране блокировки) */
+  body::before{
+    content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(120% 80% at 50% 0%,#12161f 0%,#06070b 55%,#000 100%);
+  }
+  #snow{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+
   /* ACCESS GATE */
   #gate{
     position:fixed;inset:0;z-index:9999;overflow:hidden;
-    background:radial-gradient(120% 80% at 50% 0%,#12161f 0%,#06070b 55%,#000 100%);
     display:none;align-items:center;justify-content:center;padding:24px;
   }
-  #snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   .pass-card{
     position:relative;width:100%;max-width:320px;
     display:flex;flex-direction:column;align-items:center;gap:12px;
@@ -50,11 +57,12 @@
   #gateId.big{font-size:20px;color:var(--text);letter-spacing:2px;padding:10px 14px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.05);user-select:all;-webkit-user-select:all}
 
   /* MAIN */
-  #mainApp{display:none}
+  #mainApp{display:none;position:relative;z-index:2}
   header{
     display:flex;align-items:center;padding:16px 14px 12px;
     border-bottom:1px solid var(--border);
-    position:sticky;top:0;z-index:50;background:var(--bg);
+    position:sticky;top:0;z-index:50;background:rgba(6,7,11,.72);
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
   }
   .hdr-title{font-size:17px;font-weight:600;flex:1}
   .dots-btn{
@@ -68,7 +76,7 @@
   .sec-label{
     font-size:10px;font-weight:600;letter-spacing:1.4px;
     text-transform:uppercase;color:var(--text-muted);
-    padding:16px 14px 6px;
+    padding:16px 20px 8px;
   }
 
   .sec-row{display:flex;align-items:center}
@@ -81,7 +89,12 @@
   .copy-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 
   /* DUTY LIST */
-  .duty-list{display:flex;flex-direction:column}
+  .duty-list,.debtors-list{
+    display:flex;flex-direction:column;margin:0 14px;overflow:hidden;
+    background:var(--glass);border:1px solid var(--glass-bd);border-radius:20px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .duty-item:last-child,.debtor-item:last-child{border-bottom:none}
   .duty-item{
     display:flex;align-items:center;padding:0 14px;
     border-bottom:1px solid var(--border);min-height:64px;gap:10px;
@@ -99,7 +112,6 @@
   .person-count.nz{color:var(--text-dim)}
 
   /* DEBTORS */
-  .debtors-list{display:flex;flex-direction:column}
   .debtor-item{
     display:flex;align-items:center;padding:11px 14px;
     border-bottom:1px solid var(--border);gap:10px;
@@ -111,15 +123,15 @@
   /* RAND */
   .rand-wrap{padding:14px}
   .rand-btn{
-    width:100%;background:#fff;color:#000;border:none;border-radius:8px;
+    width:100%;background:#fff;color:#000;border:none;border-radius:12px;
     padding:13px;font-size:14px;font-weight:600;cursor:pointer;
   }
   .rand-btn:active{opacity:.7}
   .rand-btn:disabled{opacity:.5;cursor:default}
   .rand-result{
     margin-top:10px;position:relative;overflow:hidden;
-    background:radial-gradient(120% 140% at 50% 0%,#1b1b1b 0%,var(--surface2) 60%);
-    border:1px solid var(--border2);border-radius:14px;padding:16px 14px 14px;
+    background:var(--glass);box-shadow:0 20px 60px rgba(0,0,0,.5);
+    border:1px solid var(--glass-bd);border-radius:20px;padding:18px 14px 16px;
     display:none;flex-direction:column;align-items:center;text-align:center;
   }
   .rand-result.show{display:flex;animation:rrIn .3s ease-out}
@@ -155,10 +167,11 @@
   /* OVERLAY */
   .overlay{position:fixed;inset:0;z-index:200;display:none}
   .overlay.active{display:block}
-  .ov-bd{position:absolute;inset:0;background:rgba(0,0,0,.65)}
+  .ov-bd{position:absolute;inset:0;background:rgba(3,4,8,.6)}
   .ctx-menu{
-    position:absolute;background:var(--surface2);
-    border:1px solid var(--border2);border-radius:10px;
+    position:absolute;background:var(--pop);
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+    border:1px solid var(--border2);border-radius:14px;
     min-width:210px;box-shadow:0 8px 40px rgba(0,0,0,.8);
     overflow:hidden;
     transform:scale(.85);opacity:0;transform-origin:top right;
@@ -206,9 +219,9 @@
 
   /* TOAST */
   /* EDIT MODAL */
-  .modal-bg{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.7);display:none;align-items:flex-start;justify-content:center;padding-top:18vh}
+  .modal-bg{position:fixed;inset:0;z-index:300;background:rgba(3,4,8,.7);display:none;align-items:flex-start;justify-content:center;padding-top:18vh}
   .modal-bg.show{display:flex}
-  .modal{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:16px;width:min(280px,86vw)}
+  .modal{background:var(--pop);border:1px solid var(--border2);border-radius:16px;padding:16px;width:min(280px,86vw)}
   .modal-title{font-size:13px;color:var(--text-dim);margin-bottom:10px}
   .modal input{
     width:100%;font-size:16px;padding:10px 12px;background:var(--bg);border:1px solid var(--border2);
@@ -223,7 +236,7 @@
     bottom:calc(18px + env(safe-area-inset-bottom,0px));
     left:50%;transform:translateX(-50%) translateY(80px);
     opacity:0;visibility:hidden;
-    background:var(--surface2);border:1px solid var(--border2);
+    background:var(--pop);border:1px solid var(--border2);
     border-radius:20px;padding:9px 18px;font-size:13px;color:var(--text);
     white-space:nowrap;z-index:999;pointer-events:none;
     transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s linear .25s;
@@ -232,10 +245,10 @@
 </style>
 </head>
 <body>
+<canvas id="snow"></canvas>
 
 <!-- ACCESS GATE -->
 <div id="gate">
-  <canvas id="snow"></canvas>
   <div class="pass-card">
     <div class="pass-badge" id="gateBadge">
       <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
@@ -388,14 +401,14 @@ function save() {
 // initialise S immediately
 S = loadState();
 
-// ── SNOW (экран блокировки, редкий, белые точки) ─────────────────────────────
-var _snowOn = false;
+// ── SNOW (на всех экранах, редкий, белые точки) ──────────────────────────────
+var _snowRun = false;
 var startSnow = function(){};
 (function(){
   var cv = document.getElementById('snow'); if (!cv) return;
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var ctx = cv.getContext('2d');
-  var dpr = Math.min(window.devicePixelRatio || 1, 2), W = 0, H = 0, flakes = [];
+  var dpr = Math.min(window.devicePixelRatio || 1, 2), W = 0, H = 0, flakes = [], inited = false;
   function size(){
     W = window.innerWidth; H = window.innerHeight;
     cv.width = W*dpr; cv.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -405,7 +418,7 @@ var startSnow = function(){};
              v:0.25+Math.random()*0.55, a:0.35+Math.random()*0.55, ph:Math.random()*6.28, sw:0.2+Math.random()*0.5 };
   }
   function tick(t){
-    if (!_snowOn) return;
+    if (document.hidden) { _snowRun = false; return; } // экономим батарею, пока апп свёрнут
     ctx.clearRect(0,0,W,H); ctx.fillStyle = '#fff';
     for (var i=0;i<flakes.length;i++){
       var f = flakes[i];
@@ -416,13 +429,15 @@ var startSnow = function(){};
     requestAnimationFrame(tick);
   }
   startSnow = function(){
-    if (_snowOn) return;
-    size(); flakes = [];
-    var N = Math.round(Math.min(45, Math.max(24, W*H/9000)));
-    for (var i=0;i<N;i++) flakes.push(mk(true));
-    window.addEventListener('resize', size);
-    _snowOn = true; requestAnimationFrame(tick);
+    if (!inited) {
+      inited = true; size();
+      var N = Math.round(Math.min(45, Math.max(24, W*H/9000)));
+      for (var i=0;i<N;i++) flakes.push(mk(true));
+      window.addEventListener('resize', size);
+    }
+    if (!_snowRun) { _snowRun = true; requestAnimationFrame(tick); }
   };
+  startSnow();
 })();
 
 // ── ACCESS (вход через телеграм: пускает только OWNER_ID) ─────────────────────
@@ -443,11 +458,10 @@ function showGate(kind, uid) {
   idEl.textContent = uid ? (kind === 'setup' ? String(uid) : 'ID: ' + uid) : '';
   idEl.classList.toggle('big', kind === 'setup');
   document.getElementById('gate').style.display = 'flex';
-  startSnow();
 }
 
 function showApp() {
-  _owner = true; _snowOn = false;
+  _owner = true;
   document.getElementById('gate').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
   render();
@@ -816,7 +830,11 @@ if (TG) {
   TG.expand();
 }
 checkAccess();
-document.addEventListener('visibilitychange', function(){ if (!document.hidden && _owner) cloudPull(); });
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden) return;
+  startSnow();
+  if (_owner) cloudPull();
+});
 </script>
 </body>
 </html>
