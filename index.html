@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>График Дежурства</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg:#000; --surface:#0d0d0d; --surface2:#161616;
+    --border:#1e1e1e; --border2:#2a2a2a;
+    --text:#fff; --text-muted:#555; --text-dim:#888;
+    --green:#4caf50; --red:#ef5350;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
+    min-height:100vh;font-size:14px;
+    padding-bottom:calc(32px + env(safe-area-inset-bottom,0px));
+    padding-top:env(safe-area-inset-top,0px);
+  }
+
+  /* PASSWORD */
+  #passScreen{
+    position:fixed;inset:0;z-index:9999;background:#000;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:20px;padding:32px;
+  }
+  #passScreen h1{font-size:18px;font-weight:600}
+  #passScreen p{font-size:13px;color:var(--text-muted)}
+  #passInput{
+    background:var(--surface2);border:1px solid var(--border2);
+    border-radius:8px;outline:none;color:var(--text);
+    font-size:15px;padding:13px 14px;width:100%;max-width:280px;
+    letter-spacing:2px;font-family:monospace;
+  }
+  #passInput::placeholder{letter-spacing:0;font-family:inherit;color:var(--text-muted);font-size:14px}
+  #passErr{font-size:12px;color:var(--red);height:16px;text-align:center}
+  .pass-btn{
+    background:#fff;color:#000;border:none;border-radius:8px;
+    padding:13px;width:100%;max-width:280px;
+    font-size:14px;font-weight:600;cursor:pointer;
+  }
+  .pass-btn:active{opacity:.7}
+
+  /* MAIN */
+  #mainApp{display:none}
+  header{
+    display:flex;align-items:center;padding:16px 14px 12px;
+    border-bottom:1px solid var(--border);
+    position:sticky;top:0;z-index:50;background:var(--bg);
+  }
+  .hdr-title{font-size:17px;font-weight:600;flex:1}
+  .dots-btn{
+    background:none;border:none;color:var(--text-muted);
+    font-size:20px;cursor:pointer;width:32px;height:32px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:50%;flex-shrink:0;
+  }
+  .dots-btn:active{background:var(--surface2)}
+
+  .sec-label{
+    font-size:10px;font-weight:600;letter-spacing:1.4px;
+    text-transform:uppercase;color:var(--text-muted);
+    padding:16px 14px 6px;
+  }
+
+  /* DUTY LIST */
+  .duty-list{display:flex;flex-direction:column}
+  .duty-item{
+    display:flex;align-items:center;padding:0 14px;
+    border-bottom:1px solid var(--border);min-height:64px;gap:10px;
+  }
+  .duty-num{font-size:11px;color:var(--text-muted);min-width:18px;text-align:right}
+  .duty-names{flex:1;display:flex;flex-direction:column;gap:5px}
+  .person-row{display:flex;align-items:center;gap:7px}
+  .person-name{font-size:14px;flex:1}
+  .person-count{font-size:11px;font-weight:600;color:var(--text-muted);min-width:16px;text-align:right;font-family:monospace}
+  .person-count.nz{color:var(--text-dim)}
+
+  /* DEBTORS */
+  .debtors-list{display:flex;flex-direction:column}
+  .debtor-item{
+    display:flex;align-items:center;padding:11px 14px;
+    border-bottom:1px solid var(--border);gap:10px;
+  }
+  .debtor-name{flex:1;font-size:14px;color:var(--red)}
+  .debtor-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+  .empty-msg{padding:14px 14px;font-size:13px;color:var(--text-muted)}
+
+  /* RAND */
+  .rand-wrap{padding:14px}
+  .rand-btn{
+    width:100%;background:#fff;color:#000;border:none;border-radius:8px;
+    padding:13px;font-size:14px;font-weight:600;cursor:pointer;
+  }
+  .rand-btn:active{opacity:.7}
+  .rand-result{
+    margin-top:10px;background:var(--surface2);border:1px solid var(--border2);
+    border-radius:8px;padding:14px 14px 14px 14px;
+    display:none;flex-direction:column;gap:3px;position:relative;
+  }
+  .rand-result.show{display:flex}
+  .rr-label{font-size:10px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase}
+  .rr-name{font-size:20px;font-weight:700}
+  .rr-sub{font-size:12px;color:var(--text-muted)}
+  .rr-row{display:flex;align-items:center;gap:8px}
+  .rr-close{
+    background:none;border:none;color:var(--text-muted);font-size:16px;
+    cursor:pointer;width:28px;height:28px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;
+  }
+  .rr-close:active{background:var(--border)}
+
+  /* OVERLAY */
+  .overlay{position:fixed;inset:0;z-index:200;display:none}
+  .overlay.active{display:block}
+  .ov-bd{position:absolute;inset:0;background:rgba(0,0,0,.65)}
+  .ctx-menu{
+    position:absolute;background:var(--surface2);
+    border:1px solid var(--border2);border-radius:10px;
+    min-width:210px;box-shadow:0 8px 40px rgba(0,0,0,.8);
+    overflow:hidden;
+    transform:scale(.85);opacity:0;transform-origin:top right;
+    transition:transform .18s cubic-bezier(.34,1.56,.64,1),opacity .12s;
+  }
+  .ctx-menu.open{transform:scale(1);opacity:1}
+  .ctx-hdr{
+    padding:10px 13px 8px;font-size:10px;font-weight:600;
+    letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);
+    border-bottom:1px solid var(--border);
+  }
+  .ctx-item{
+    padding:11px 13px;font-size:14px;cursor:pointer;
+    display:flex;align-items:center;gap:10px;color:var(--text);
+    border-bottom:1px solid var(--border);transition:background .12s;
+  }
+  .ctx-item:last-child{border-bottom:none}
+  .ctx-item:active{background:var(--border)}
+  .ctx-item.green{color:var(--green)}
+  .ctx-item.red{color:var(--red)}
+  .sub-list{background:var(--surface);display:none;flex-direction:column}
+  .sub-list.open{display:flex}
+  .sub-item{
+    padding:10px 13px 10px 24px;font-size:13px;color:var(--text-dim);
+    cursor:pointer;border-bottom:1px solid var(--border);
+    transition:background .12s;
+  }
+  .sub-item:last-child{border-bottom:none}
+  .sub-item:active{background:var(--border)}
+
+  /* TOAST */
+  .toast{
+    position:fixed;
+    bottom:calc(18px + env(safe-area-inset-bottom,0px));
+    left:50%;transform:translateX(-50%) translateY(60px);
+    background:var(--surface2);border:1px solid var(--border2);
+    border-radius:20px;padding:9px 18px;font-size:13px;color:var(--text);
+    white-space:nowrap;z-index:999;pointer-events:none;
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  .toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD -->
+<div id="passScreen">
+  <h1>График Дежурства</h1>
+  <p>Введите пароль для доступа</p>
+  <input id="passInput" type="password" placeholder="Пароль" autocomplete="off"/>
+  <div id="passErr"></div>
+  <button class="pass-btn" onclick="checkPass()">Войти</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp">
+  <header>
+    <span class="hdr-title">График Дежурства</span>
+    <button class="dots-btn" onclick="openHeaderMenu(event)">⋯</button>
+  </header>
+
+  <div class="sec-label">Список дежурных</div>
+  <div class="duty-list" id="dutyList"></div>
+
+  <div class="sec-label">Должники</div>
+  <div class="debtors-list" id="debtorsList"></div>
+
+  <div class="rand-wrap">
+    <button class="rand-btn" onclick="randomize()">🎲 Рандомайзер</button>
+    <div class="rand-result" id="randResult">
+      <div class="rr-label">Случайный должник</div>
+      <div class="rr-row">
+        <div>
+          <div class="rr-name" id="randName">—</div>
+          <div class="rr-sub"  id="randSub"></div>
+        </div>
+        <button class="rr-close" onclick="hideRand()">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay">
+  <div class="ov-bd" onclick="closeMenu()"></div>
+  <div class="ctx-menu" id="ctxMenu">
+    <div class="ctx-hdr" id="ctxHdr">ДЕЙСТВИЯ</div>
+    <div id="ctxBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── PAIRS ─────────────────────────────────────────────────────────────────────
+var PAIRS = [
+  {id:1,  a:'Апин',      b:'Кондрова'},
+  {id:2,  a:'Абрамова',  b:'Зайчикова'},
+  {id:3,  a:'Воронкова', b:'Козырева'},
+  {id:4,  a:'Губенко',   b:'Воробьев'},
+  {id:5,  a:'Игнатова',  b:'Ларионова'},
+  {id:6,  a:'Ищенко',    b:'Шадрин'},
+  {id:7,  a:'Овчаренко', b:'Карпенко'},
+  {id:8,  a:'Титов',     b:'Шушарина'},
+  {id:9,  a:'Макарчева', b:'Федоров'},
+  {id:10, a:'Щербаков',  b:'Кудреевич'}
+];
+
+var PASSWORD = 'cxzdsaytrewq321';
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var S; // declared first, assigned below
+
+function defaultCounts() {
+  var c = {};
+  PAIRS.forEach(function(p){ c[p.a]=0; c[p.b]=0; });
+  return c;
+}
+
+function loadState() {
+  try {
+    var raw = localStorage.getItem('duty_v5');
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      // ensure counts has all names
+      PAIRS.forEach(function(p){
+        if (parsed.counts[p.a] === undefined) parsed.counts[p.a] = 0;
+        if (parsed.counts[p.b] === undefined) parsed.counts[p.b] = 0;
+      });
+      return parsed;
+    }
+  } catch(e) {}
+  return { debtors: [], counts: defaultCounts() };
+}
+
+function save() {
+  try { localStorage.setItem('duty_v5', JSON.stringify(S)); } catch(e) {}
+}
+
+// initialise S immediately
+S = loadState();
+
+// ── PASSWORD ──────────────────────────────────────────────────────────────────
+function checkPass() {
+  var v = document.getElementById('passInput').value;
+  if (v === PASSWORD) {
+    document.getElementById('passScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    render();
+  } else {
+    var err = document.getElementById('passErr');
+    err.textContent = 'Неверный пароль';
+    setTimeout(function(){ err.textContent=''; }, 2000);
+    document.getElementById('passInput').value = '';
+  }
+}
+document.getElementById('passInput').addEventListener('keydown', function(e){
+  if (e.key === 'Enter') checkPass();
+});
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render() {
+  renderDuty();
+  renderDebtors();
+}
+
+function renderDuty() {
+  var el = document.getElementById('dutyList');
+  el.innerHTML = '';
+  PAIRS.forEach(function(p) {
+    var div = document.createElement('div');
+    div.className = 'duty-item';
+    div.innerHTML =
+      '<span class="duty-num">'+p.id+'</span>' +
+      '<div class="duty-names">' +
+        pRow(p.a, S.counts[p.a] || 0) +
+        pRow(p.b, S.counts[p.b] || 0) +
+      '</div>' +
+      '<button class="dots-btn" onclick="openPairMenu(event,'+p.id+')">⋯</button>';
+    el.appendChild(div);
+  });
+}
+
+function pRow(name, count) {
+  return '<div class="person-row">' +
+    '<span class="person-name">'+name+'</span>' +
+    '<span class="person-count '+(count>0?'nz':'')+'">'+count+'</span>' +
+    '</div>';
+}
+
+function renderDebtors() {
+  var el = document.getElementById('debtorsList');
+  el.innerHTML = '';
+  if (!S.debtors.length) {
+    el.innerHTML = '<div class="empty-msg">Должников нет</div>';
+    return;
+  }
+  S.debtors.forEach(function(d, i) {
+    var pair = PAIRS.filter(function(p){ return p.id===d.pairId; })[0];
+    var div = document.createElement('div');
+    div.className = 'debtor-item';
+    div.innerHTML =
+      '<div style="flex:1">' +
+        '<div class="debtor-name">'+d.name+'</div>' +
+        '<div class="debtor-sub">пара '+d.pairId+' · '+pair.a+' &amp; '+pair.b+'</div>' +
+      '</div>' +
+      '<button class="dots-btn" onclick="openDebtorMenu(event,'+i+')">⋯</button>';
+    el.appendChild(div);
+  });
+}
+
+// ── CONTEXT MENU ──────────────────────────────────────────────────────────────
+var _subOpen = false;
+
+function posMenu(e) {
+  var menu = document.getElementById('ctxMenu');
+  var btn  = e.currentTarget;
+  var rect = btn.getBoundingClientRect();
+  var vw = window.innerWidth, vh = window.innerHeight;
+  menu.style.top=menu.style.bottom=menu.style.left=menu.style.right='';
+  var top   = rect.bottom + 6;
+  var right = vw - rect.right + 4;
+  if (top + 300 > vh) { menu.style.bottom = (vh - rect.top + 6)+'px'; }
+  else                { menu.style.top    = top+'px'; }
+  if (right < 8) right = 8;
+  menu.style.right = right+'px';
+}
+
+function showMenu() {
+  document.getElementById('overlay').classList.add('active');
+  requestAnimationFrame(function(){
+    document.getElementById('ctxMenu').classList.add('open');
+  });
+}
+
+function closeMenu() {
+  document.getElementById('ctxMenu').classList.remove('open');
+  document.getElementById('overlay').classList.remove('active');
+  _subOpen = false;
+}
+
+function buildMenu(headerText, items) {
+  document.getElementById('ctxHdr').textContent = headerText;
+  var body = document.getElementById('ctxBody');
+  body.innerHTML = '';
+  _subOpen = false;
+
+  items.forEach(function(item) {
+    if (item.type === 'sub') {
+      var trigger = document.createElement('div');
+      trigger.className = 'ctx-item green';
+      trigger.innerHTML = '<span>✓</span> '+item.label;
+      var subEl = document.createElement('div');
+      subEl.className = 'sub-list';
+      trigger.onclick = function() {
+        _subOpen = !_subOpen;
+        subEl.classList.toggle('open', _subOpen);
+      };
+      item.children.forEach(function(c) {
+        var si = document.createElement('div');
+        si.className = 'sub-item';
+        si.textContent = c.label;
+        si.onclick = c.fn;
+        subEl.appendChild(si);
+      });
+      body.appendChild(trigger);
+      body.appendChild(subEl);
+    } else {
+      var div = document.createElement('div');
+      div.className = 'ctx-item '+(item.cls||'');
+      div.innerHTML = '<span>'+(item.icon||'')+'</span> '+item.label;
+      div.onclick = item.fn;
+      body.appendChild(div);
+    }
+  });
+}
+
+// ── PAIR MENU ─────────────────────────────────────────────────────────────────
+function openPairMenu(e, id) {
+  e.stopPropagation();
+  var p = PAIRS.filter(function(x){ return x.id===id; })[0];
+  posMenu(e);
+  buildMenu('Пара '+id, [
+    {
+      type:'sub', label:'Продежурили',
+      children:[
+        {label:'Оба: '+p.a+' & '+p.b, fn:function(){ markDuty(id,'both'); closeMenu(); }},
+        {label:'Только '+p.a,          fn:function(){ markDuty(id,'a');    closeMenu(); }},
+        {label:'Только '+p.b,          fn:function(){ markDuty(id,'b');    closeMenu(); }}
+      ]
+    },
+    {label:'Обнулить счётчики пары', cls:'red', icon:'↩', fn:function(){ resetPairCounts(id); closeMenu(); }}
+  ]);
+  showMenu();
+}
+
+// ── HEADER MENU ───────────────────────────────────────────────────────────────
+function openHeaderMenu(e) {
+  e.stopPropagation();
+  posMenu(e);
+  buildMenu('Управление', [
+    {label:'Обнулить все счётчики', cls:'red', icon:'✕', fn:function(){ doResetAll(); closeMenu(); }}
+  ]);
+  showMenu();
+}
+
+// ── DEBTOR MENU ───────────────────────────────────────────────────────────────
+function openDebtorMenu(e, idx) {
+  e.stopPropagation();
+  var d = S.debtors[idx];
+  posMenu(e);
+  buildMenu(d.name, [
+    {label:'Продежурил', cls:'green', icon:'✓', fn:function(){ markDebtorDone(idx); closeMenu(); }},
+    {label:'Удалить',    cls:'red',   icon:'✕', fn:function(){ deleteDebtor(idx);   closeMenu(); }}
+  ]);
+  showMenu();
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+// кто продежурил: +1 к счётчику, без подсветки; второй из пары уходит в должники
+// из должников убирает только markDebtorDone (меню должника)
+function markDuty(id, who) {
+  var p = PAIRS.filter(function(x){ return x.id===id; })[0];
+  if (who==='both'||who==='a') S.counts[p.a]=(S.counts[p.a]||0)+1;
+  if (who==='both'||who==='b') S.counts[p.b]=(S.counts[p.b]||0)+1;
+  if (who==='a') addDebtor(p.b,id,'b');
+  if (who==='b') addDebtor(p.a,id,'a');
+  save(); render();
+  var msg = who==='both'?(p.a+' и '+p.b+' — отмечены'):who==='a'?(p.a+' — отдежурил'):(p.b+' — отдежурил');
+  toast(msg);
+}
+
+function markDebtorDone(idx) {
+  var d = S.debtors[idx];
+  S.counts[d.name] = (S.counts[d.name]||0)+1;
+  S.debtors.splice(idx,1);
+  save(); render();
+  toast(d.name+' — отдежурил ✓');
+}
+
+// просто убрать из должников, без +1 к счётчику
+function deleteDebtor(idx) {
+  var d = S.debtors[idx];
+  S.debtors.splice(idx,1);
+  save(); render();
+  toast(d.name+' — удалён из должников');
+}
+
+function addDebtor(name,pairId,slot){
+  var exists = S.debtors.filter(function(d){ return d.name===name&&d.pairId===pairId; }).length>0;
+  if (!exists) S.debtors.push({name:name,pairId:pairId,slot:slot});
+}
+
+function resetPairCounts(id){
+  var p = PAIRS.filter(function(x){ return x.id===id; })[0];
+  S.counts[p.a]=0; S.counts[p.b]=0;
+  save(); render();
+  toast('Пара '+id+' обнулена');
+}
+
+// счётчики в ноль, должники остаются
+function doResetAll(){
+  S={ debtors:S.debtors, counts:defaultCounts() };
+  save(); render();
+  toast('Счётчики обнулены · должники остались');
+}
+
+// ── RANDOMIZER ────────────────────────────────────────────────────────────────
+function randomize(){
+  if (!S.debtors.length){ toast('Должников нет'); return; }
+  var pick = S.debtors[Math.floor(Math.random()*S.debtors.length)];
+  var pair = PAIRS.filter(function(p){ return p.id===pick.pairId; })[0];
+  document.getElementById('randName').textContent = pick.name;
+  document.getElementById('randSub').textContent  = 'пара '+pick.pairId+' · '+pair.a+' & '+pair.b;
+  document.getElementById('randResult').classList.add('show');
+}
+function hideRand(){
+  document.getElementById('randResult').classList.remove('show');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+var _tt;
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(function(){ t.classList.remove('show'); },2400);
+}
+
+// ── TG SDK ────────────────────────────────────────────────────────────────────
+if (window.Telegram && window.Telegram.WebApp) {
+  window.Telegram.WebApp.ready();
+  window.Telegram.WebApp.expand();
+}
+</script>
+</body>
+</html>
