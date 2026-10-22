@@ -511,13 +511,25 @@ function save() {
 S = loadState();
 
 // ── SNOW (на всех экранах, редкий, белые точки) ──────────────────────────────
+// во время проигрывания трека на gate плавно превращаются в 🤫, затем обратно
 var _snowRun = false;
 var startSnow = function(){};
+var setEmojiMode = function(){};
 (function(){
   var cv = document.getElementById('snow'); if (!cv) return;
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var ctx = cv.getContext('2d');
   var dpr = Math.min(window.devicePixelRatio || 1, 2), W = 0, H = 0, flakes = [], inited = false;
+  var EMOJI = '🤫'; // 🤫
+
+  // 0 = снежинки, 1 = смайлики; плавный переход между состояниями во времени
+  var emojiFrom = 0, emojiTarget = 0, emojiState = 0, emojiT0 = 0, emojiDur = 900;
+  function ease(x){ return x<0?0:x>1?1:(1-Math.pow(1-x,3)); }
+  setEmojiMode = function(target){
+    emojiFrom = emojiState; emojiTarget = target; emojiT0 = performance.now();
+    if (!_snowRun) startSnow();
+  };
+
   function size(){
     W = window.innerWidth; H = window.innerHeight;
     cv.width = W*dpr; cv.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -528,13 +540,27 @@ var startSnow = function(){};
   }
   function tick(t){
     if (document.hidden) { _snowRun = false; return; } // экономим батарею, пока апп свёрнут
-    ctx.clearRect(0,0,W,H); ctx.fillStyle = '#fff';
+    var prog = emojiDur > 0 ? (t - emojiT0) / emojiDur : 1;
+    emojiState = emojiFrom + (emojiTarget - emojiFrom) * ease(prog);
+    var em = emojiState;
+    ctx.clearRect(0,0,W,H);
     for (var i=0;i<flakes.length;i++){
       var f = flakes[i];
       f.y += f.v; f.x += Math.sin(t/1500 + f.ph) * f.sw * 0.6;
       if (f.y > H+6) { flakes[i] = f = mk(false); }
-      ctx.globalAlpha = f.a; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.2832); ctx.fill();
+      if (em < 0.995) {
+        ctx.globalAlpha = f.a * (1 - em);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.2832); ctx.fill();
+      }
+      if (em > 0.005) {
+        ctx.globalAlpha = f.a * em;
+        ctx.font = Math.max(10, f.r*9)+'px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(EMOJI, f.x, f.y);
+      }
     }
+    ctx.globalAlpha = 1;
     requestAnimationFrame(tick);
   }
   startSnow = function(){
@@ -577,7 +603,11 @@ function _gateTrackHandler() {
   if (_gateTrackPlayed) return;
   _gateTrackPlayed = true;
   var a = document.getElementById('gateTrack');
-  if (a) { try { a.currentTime = 0; a.play().catch(function(){}); } catch(e) {} }
+  if (a) {
+    a.addEventListener('ended', function(){ setEmojiMode(0); });
+    try { a.currentTime = 0; a.play().catch(function(){}); } catch(e) {}
+  }
+  setEmojiMode(1);
   disarmGateTrack();
 }
 function armGateTrack() {
