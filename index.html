@@ -76,7 +76,12 @@
   .duty-names{flex:1;display:flex;flex-direction:column;gap:5px}
   .person-row{display:flex;align-items:center;gap:7px}
   .person-name{font-size:14px;flex:1}
-  .person-count{font-size:11px;font-weight:600;color:var(--text-muted);min-width:16px;text-align:right;font-family:monospace}
+  .person-count{
+    font-size:12px;font-weight:600;color:var(--text-muted);min-width:34px;text-align:center;font-family:monospace;
+    background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .person-count:active{background:var(--surface2)}
   .person-count.nz{color:var(--text-dim)}
 
   /* DEBTORS */
@@ -151,16 +156,30 @@
   .sub-item:active{background:var(--border)}
 
   /* TOAST */
+  /* EDIT MODAL */
+  .modal-bg{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.7);display:none;align-items:flex-start;justify-content:center;padding-top:18vh}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:16px;width:min(280px,86vw)}
+  .modal-title{font-size:13px;color:var(--text-dim);margin-bottom:10px}
+  .modal input{
+    width:100%;font-size:16px;padding:10px 12px;background:var(--bg);border:1px solid var(--border2);
+    border-radius:8px;outline:none;color:var(--text);font-family:monospace;text-align:center;
+  }
+  .modal-btns{display:flex;gap:8px;margin-top:12px}
+  .modal-btns button{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:none;color:var(--text-dim);font-size:14px;cursor:pointer}
+  .modal-btns button.ok{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:600}
+
   .toast{
     position:fixed;
     bottom:calc(18px + env(safe-area-inset-bottom,0px));
-    left:50%;transform:translateX(-50%) translateY(60px);
+    left:50%;transform:translateX(-50%) translateY(80px);
+    opacity:0;visibility:hidden;
     background:var(--surface2);border:1px solid var(--border2);
     border-radius:20px;padding:9px 18px;font-size:13px;color:var(--text);
     white-space:nowrap;z-index:999;pointer-events:none;
-    transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s linear .25s;
   }
-  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s}
 </style>
 </head>
 <body>
@@ -211,6 +230,16 @@
   </div>
 </div>
 
+<div class="modal-bg" id="editBg" onclick="if(event.target===this)closeEdit()">
+  <div class="modal">
+    <div class="modal-title" id="editTitle"></div>
+    <input id="editInput" type="number" inputmode="numeric" min="0" max="9999">
+    <div class="modal-btns">
+      <button onclick="closeEdit()">Отмена</button>
+      <button class="ok" onclick="applyEdit()">Сохранить</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -239,24 +268,65 @@ function defaultCounts() {
   return c;
 }
 
+function normalize(o) {
+  if (!o || typeof o !== 'object') o = {};
+  if (!o.counts || typeof o.counts !== 'object') o.counts = {};
+  if (!Array.isArray(o.debtors)) o.debtors = [];
+  PAIRS.forEach(function(p){
+    if (o.counts[p.a] === undefined) o.counts[p.a] = 0;
+    if (o.counts[p.b] === undefined) o.counts[p.b] = 0;
+  });
+  return o;
+}
+
 function loadState() {
   try {
     var raw = localStorage.getItem('duty_v5');
-    if (raw) {
-      var parsed = JSON.parse(raw);
-      // ensure counts has all names
-      PAIRS.forEach(function(p){
-        if (parsed.counts[p.a] === undefined) parsed.counts[p.a] = 0;
-        if (parsed.counts[p.b] === undefined) parsed.counts[p.b] = 0;
-      });
-      return parsed;
-    }
+    if (raw) return normalize(JSON.parse(raw));
   } catch(e) {}
-  return { debtors: [], counts: defaultCounts() };
+  return normalize({});
+}
+
+// ── CLOUD (Telegram CloudStorage: твой тг-аккаунт, общий для всех устройств) ──
+var TG = window.Telegram && window.Telegram.WebApp;
+var CS = (TG && TG.initData && TG.isVersionAtLeast && TG.isVersionAtLeast('6.9') && TG.CloudStorage) ? TG.CloudStorage : null;
+
+function persistLocal() {
+  try { localStorage.setItem('duty_v5', JSON.stringify(S)); } catch(e) {}
+}
+
+var _ct;
+function cloudPush() {
+  if (!CS) return;
+  clearTimeout(_ct);
+  _ct = setTimeout(function(){
+    var json = JSON.stringify(S);
+    if (json.length > 4096) { toast('Облако: данные не влезли (>4096)'); return; } // лимит тг на значение
+    CS.setItem('duty_v5', json, function(err){ if (err) console.log('cloud set', err); });
+  }, 400);
+}
+
+// у кого ts новее, тот и прав; без ts (старые данные) облако выигрывает, если оно есть
+function cloudPull() {
+  if (!CS) return;
+  CS.getItem('duty_v5', function(err, val){
+    if (err) return;
+    var c = null;
+    try { if (val) c = normalize(JSON.parse(val)); } catch(e) {}
+    var lt = S.ts || 0;
+    if (c && (c.ts || 0) > lt) {
+      S = c; persistLocal(); render();
+      toast('Данные подтянуты из облака');
+    } else if (!c || (c.ts || 0) < lt) {
+      cloudPush();
+    }
+  });
 }
 
 function save() {
-  try { localStorage.setItem('duty_v5', JSON.stringify(S)); } catch(e) {}
+  S.ts = Date.now();
+  persistLocal();
+  cloudPush();
 }
 
 // initialise S immediately
@@ -306,7 +376,7 @@ function renderDuty() {
 function pRow(name, count) {
   return '<div class="person-row">' +
     '<span class="person-name">'+name+'</span>' +
-    '<span class="person-count '+(count>0?'nz':'')+'">'+count+'</span>' +
+    '<button class="person-count '+(count>0?'nz':'')+'" onclick="openEdit(\''+name+'\')">'+count+'</button>' +
     '</div>';
 }
 
@@ -500,6 +570,32 @@ function hideRand(){
   document.getElementById('randResult').classList.remove('show');
 }
 
+// ── EDIT COUNT ────────────────────────────────────────────────────────────────
+var _editName = null;
+function openEdit(name) {
+  _editName = name;
+  document.getElementById('editTitle').textContent = name + ' — число дежурств';
+  var inp = document.getElementById('editInput');
+  inp.value = S.counts[name] || 0;
+  document.getElementById('editBg').classList.add('show');
+  setTimeout(function(){ inp.focus(); inp.select(); }, 50);
+}
+function closeEdit() {
+  document.getElementById('editBg').classList.remove('show');
+  _editName = null;
+}
+function applyEdit() {
+  var v = parseInt(document.getElementById('editInput').value, 10);
+  if (isNaN(v) || v < 0 || v > 9999) { toast('Введи число от 0 до 9999'); return; }
+  var name = _editName;
+  S.counts[name] = v;
+  save(); render(); closeEdit();
+  toast(name + ': ' + v);
+}
+document.getElementById('editInput').addEventListener('keydown', function(e){
+  if (e.key === 'Enter') applyEdit();
+});
+
 // ── TOAST ─────────────────────────────────────────────────────────────────────
 var _tt;
 function toast(msg){
@@ -509,10 +605,12 @@ function toast(msg){
 }
 
 // ── TG SDK ────────────────────────────────────────────────────────────────────
-if (window.Telegram && window.Telegram.WebApp) {
-  window.Telegram.WebApp.ready();
-  window.Telegram.WebApp.expand();
+if (TG) {
+  TG.ready();
+  TG.expand();
 }
+cloudPull();
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) cloudPull(); });
 </script>
 </body>
 </html>
