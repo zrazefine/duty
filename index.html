@@ -252,6 +252,24 @@
   .p-btn.plus{color:var(--green)}
   .p-btn.x{color:var(--red)}
 
+.sec-link{cursor:pointer;touch-action:manipulation;transition:color .15s}
+  .sec-link:active{color:var(--text)}
+  .duty-num{position:relative}
+  .duty-num .nd{position:relative;display:inline-block}
+  .duty-num .chk{position:absolute;right:calc(100% + 3px);top:50%;transform:translateY(-50%);font-size:10px;line-height:1;color:inherit;animation:chkIn .22s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes chkIn{from{transform:translateY(-50%) scale(.3);opacity:0}to{transform:translateY(-50%) scale(1);opacity:1}}
+  .l-wrap{padding:10px 13px 12px;display:flex;flex-direction:column;gap:10px}
+  .l-input{
+    width:100%;font-size:16px;padding:10px 12px;background:rgba(0,0,0,.35);border:1px solid var(--border2);
+    border-radius:12px;outline:none;color:var(--text);font-family:monospace;text-align:center;
+  }
+  .l-del{
+    width:100%;padding:10px;border-radius:12px;border:1px solid var(--border2);background:rgba(255,69,58,.1);
+    color:var(--red);font-size:14px;cursor:pointer;touch-action:manipulation;
+    transition:transform .12s cubic-bezier(.34,1.56,.64,1),background .12s;
+  }
+  .l-del:active{transform:scale(.96);background:rgba(255,69,58,.2)}
+
   /* TOAST */
   /* EDIT MODAL */
   .modal-bg{position:fixed;inset:0;z-index:300;background:rgba(3,4,8,.55);display:none;align-items:flex-start;justify-content:center;padding-top:18vh}
@@ -314,7 +332,7 @@
   </header>
 
   <div class="sec-row">
-    <div class="sec-label">Список дежурных</div>
+    <div class="sec-label sec-link" onclick="openLastMenu(event)">Список дежурных</div>
     <button class="copy-btn" onclick="copyCounts()" aria-label="Скопировать счётчики">
       <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
     </button>
@@ -733,7 +751,7 @@ function renderDuty() {
     var div = document.createElement('div');
     div.className = 'duty-item';
     div.innerHTML =
-      '<span class="duty-num">'+p.id+'</span>' +
+      '<span class="duty-num"><span class="nd">'+(S.last===p.id?'<span class="chk">\u2713</span>':'')+p.id+'</span></span>' +
       '<div class="duty-names">' +
         pRow(p.a, S.counts[p.a] || 0) +
         pRow(p.b, S.counts[p.b] || 0) +
@@ -791,7 +809,7 @@ function posMenu(e) {
   var btn  = e.currentTarget;
   var rect = btn.getBoundingClientRect();
   var vw = window.innerWidth, vh = window.innerHeight;
-  menu.style.top=menu.style.bottom=menu.style.left=menu.style.right='';
+  menu.style.top=menu.style.bottom=menu.style.left=menu.style.right='';menu.style.transformOrigin='';
   var top   = rect.bottom + 6;
   var right = vw - rect.right + 4;
   if (top + 300 > vh) { menu.style.bottom = (vh - rect.top + 6)+'px'; }
@@ -890,6 +908,47 @@ function openPairMenu(e, id) {
   body.appendChild(pairPersonRow(id, p.a, 'a'));
   body.appendChild(pairPersonRow(id, p.b, 'b'));
   showMenu();
+}
+
+// ── LAST PAIR MENU (тап по «Список дежурных») ────────────────────────────────
+// ввод 1..10 -> галочка слева от номера этой пары; новая пара забирает галочку у прошлой
+function openLastMenu(e) {
+  e.stopPropagation();
+  sfx.open();
+  var rect = e.currentTarget.getBoundingClientRect();
+  var menu = document.getElementById('ctxMenu');
+  buildMenu('Последние', []);
+  menu.style.top = menu.style.bottom = menu.style.left = menu.style.right = '';
+  menu.style.left = Math.max(8, rect.left) + 'px';
+  menu.style.top = (rect.bottom + 6) + 'px';
+  menu.style.transformOrigin = 'top left';
+  var body = document.getElementById('ctxBody');
+  var wrap = document.createElement('div'); wrap.className = 'l-wrap';
+  var inp = document.createElement('input');
+  inp.className = 'l-input'; inp.type = 'number'; inp.inputMode = 'numeric';
+  inp.min = 1; inp.max = PAIRS.length; inp.placeholder = '1\u2013' + PAIRS.length;
+  inp.value = S.last || '';
+  inp.addEventListener('input', function(){
+    var raw = inp.value.replace(/\D/g, '').slice(0, 2);
+    if (raw !== inp.value) inp.value = raw;
+    if (raw === '') return;
+    var n = parseInt(raw, 10);
+    if (n < 1 || n > PAIRS.length) { toast('Пара от 1 до ' + PAIRS.length); sfx.warning(); return; }
+    if (S.last === n) return;
+    S.last = n; save(); render(); sfx.tap();
+  });
+  inp.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') { inp.blur(); closeMenu(); } });
+  var del = document.createElement('button');
+  del.className = 'l-del'; del.textContent = 'Удалить';
+  del.onclick = function(ev){
+    ev.stopPropagation();
+    if (S.last == null) { toast('Галочки нет'); sfx.warning(); return; }
+    S.last = null; inp.value = ''; save(); render(); sfx.remove();
+  };
+  wrap.appendChild(inp); wrap.appendChild(del);
+  body.appendChild(wrap);
+  showMenu();
+  setTimeout(function(){ try { inp.focus(); } catch(x){} }, 60);
 }
 
 // ── HEADER MENU ───────────────────────────────────────────────────────────────
