@@ -311,6 +311,7 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<audio id="easterEggTrack" src="office.mp3" preload="auto" playsinline></audio>
 
 <script>
 // ── SOUND ENGINE (Web Audio, синтезированные звуки, без файлов) ───────────────
@@ -616,6 +617,27 @@ function armGateTrack() {
   gateEl.addEventListener('touchstart', _gateTrackHandler, {capture:true, passive:true});
   gateEl.addEventListener('click', _gateTrackHandler, {capture:true});
 }
+
+// ── ПАСХАЛКА: тап по фамилии "Губенко" на главном экране ─────────────────────
+// запускает трек, снежинки превращаются в 🤫, рядом с фамилией появляется 🤫;
+// по окончании трека всё плавно возвращается как было
+var _easterEggPlaying = false;
+function onEasterEggTap() {
+  if (_easterEggPlaying) return;
+  var a = document.getElementById('easterEggTrack');
+  if (!a) return;
+  _easterEggPlaying = true;
+  var badge = document.getElementById('easterEggEmoji');
+  if (badge) badge.style.display = 'inline';
+  setEmojiMode(1);
+  a.onended = function(){
+    _easterEggPlaying = false;
+    setEmojiMode(0);
+    var b = document.getElementById('easterEggEmoji');
+    if (b) b.style.display = 'none';
+  };
+  try { a.currentTime = 0; a.play().catch(function(){ _easterEggPlaying = false; }); } catch(e) { _easterEggPlaying = false; }
+}
 function disarmGateTrack() {
   var gateEl = document.getElementById('gate');
   gateEl.removeEventListener('touchstart', _gateTrackHandler, {capture:true});
@@ -626,7 +648,6 @@ function showApp() {
   _owner = true;
   document.getElementById('gate').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
-  setEmojiMode(1); // в главном приложении всегда летают 🤫, а не снежинки
   render();
   cloudPull();
 }
@@ -663,9 +684,18 @@ function renderDuty() {
   });
 }
 
+var EASTER_EGG_NAME = 'Губенко';
 function pRow(name, count) {
+  var nameHtml = '<span class="person-name">'+name+'</span>';
+  if (name === EASTER_EGG_NAME) {
+    nameHtml =
+      '<span class="person-name" onclick="event.stopPropagation();onEasterEggTap()" style="cursor:pointer;display:flex;align-items:center;gap:6px">'+
+        '<span>'+name+'</span>' +
+        '<span id="easterEggEmoji" style="display:none;font-size:15px">🤫</span>' +
+      '</span>';
+  }
   return '<div class="person-row">' +
-    '<span class="person-name">'+name+'</span>' +
+    nameHtml +
     '<button class="person-count '+(count>0?'nz':'')+'" onclick="openEdit(\''+name+'\')">'+count+'</button>' +
     '</div>';
 }
