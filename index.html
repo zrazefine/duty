@@ -96,8 +96,6 @@
     transition:transform .15s cubic-bezier(.34,1.56,.64,1),background .15s;
   }
   .dots-btn:active{transform:scale(.88);background:rgba(255,255,255,.16)}
-  #soundBtn{background:none;border:none;opacity:0}
-  #soundBtn:active{background:none}
 
   .sec-label{
     font-size:10px;font-weight:600;letter-spacing:1.4px;
@@ -312,7 +310,6 @@
 <div id="mainApp">
   <header>
     <span class="hdr-title">График Дежурства</span>
-    <button class="dots-btn" id="soundBtn" onclick="toggleSound(event)" aria-label="Звук"></button>
     <button class="dots-btn" onclick="openHeaderMenu(event)">⋯</button>
   </header>
 
@@ -901,6 +898,17 @@ function openHeaderMenu(e) {
   sfx.open();
   posMenu(e);
   buildMenu('Управление', []);
+  var body = document.getElementById('ctxBody');
+
+  // пункт "Звук: вкл/выкл" — переключается тапом, меню не закрывается
+  var snd = document.createElement('div');
+  snd.className = 'ctx-item';
+  function sndLabel(){ return '<span>'+(soundOn?'🔊':'🔇')+'</span> Звук: '+(soundOn?'вкл':'выкл'); }
+  snd.innerHTML = sndLabel();
+  snd.onclick = function(){ toggleSound(); snd.innerHTML = sndLabel(); };
+  body.appendChild(snd);
+
+  // пункт "Стереть всё"
   var it = document.createElement('div');
   it.className = 'ctx-item red';
   var idle = '<span>✕</span> Стереть всё';
@@ -916,7 +924,7 @@ function openHeaderMenu(e) {
     }
     clearTimeout(timer); doResetAll(); closeMenu(); sfx.reset();
   };
-  document.getElementById('ctxBody').appendChild(it);
+  body.appendChild(it);
   showMenu();
 }
 
