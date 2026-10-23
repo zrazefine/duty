@@ -903,7 +903,7 @@ function openHeaderMenu(e) {
   // пункт "Звук: вкл/выкл" — переключается тапом, меню не закрывается
   var snd = document.createElement('div');
   snd.className = 'ctx-item';
-  function sndLabel(){ return '<span>'+(soundOn?'🔊':'🔇')+'</span> Звук: '+(soundOn?'вкл':'выкл'); }
+  function sndLabel(){ return 'Звук: '+(soundOn?'вкл':'выкл'); }
   snd.innerHTML = sndLabel();
   snd.onclick = function(){ toggleSound(); snd.innerHTML = sndLabel(); };
   body.appendChild(snd);
