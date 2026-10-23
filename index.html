@@ -620,8 +620,8 @@ function armGateTrack() {
 
 // ── ПАСХАЛКА: тап по фамилии "Губенко" на главном экране ─────────────────────
 // запускает трек, снежинки превращаются в 🤫, рядом с фамилией появляется 🤫;
-// по окончании трека всё плавно возвращается как было
-var _easterEggPlaying = false;
+// по окончании трека всё плавно возвращается как было (переживает render(),
+// в т.ч. при +/- счётчика и при "Стереть всё")
 function onEasterEggTap() {
   if (_easterEggPlaying) return;
   var a = document.getElementById('easterEggTrack');
@@ -685,13 +685,16 @@ function renderDuty() {
 }
 
 var EASTER_EGG_NAME = 'Губенко';
+var _easterEggPlaying = false; // объявлена здесь, т.к. используется при каждом render()
 function pRow(name, count) {
   var nameHtml = '<span class="person-name">'+name+'</span>';
   if (name === EASTER_EGG_NAME) {
+    // кликабельна только сама надпись (inline-block по размеру текста),
+    // внешний span остаётся flex:1 только для верстки строки
     nameHtml =
-      '<span class="person-name" onclick="event.stopPropagation();onEasterEggTap()" style="cursor:pointer;display:flex;align-items:center;gap:6px">'+
-        '<span>'+name+'</span>' +
-        '<span id="easterEggEmoji" style="display:none;font-size:15px">🤫</span>' +
+      '<span class="person-name" style="display:flex;align-items:center;gap:6px">'+
+        '<span onclick="event.stopPropagation();onEasterEggTap()" style="cursor:pointer;display:inline-block">'+name+'</span>' +
+        '<span id="easterEggEmoji" style="display:'+(_easterEggPlaying?'inline':'none')+';font-size:15px">🤫</span>' +
       '</span>';
   }
   return '<div class="person-row">' +
