@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>График Дежурства</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Rubik+Glitch&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:#000;
@@ -306,6 +309,166 @@
     transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s linear .25s;
   }
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s}
+
+  /* ═══ KAI ANGEL / OPIUM — кибер-готика, дарк-авангард, цифровой деструктивизм ═══ */
+  :root{
+    --bg:#000;
+    --glass:rgba(4,4,5,.78); --glass-bd:rgba(255,255,255,.2);
+    --glass-blur:none; --pop:rgba(3,3,4,.94); --pop-blur:none;
+    --border:rgba(255,255,255,.1); --border2:rgba(255,255,255,.28);
+    --surface:rgba(255,255,255,.03); --surface2:rgba(255,255,255,.07);
+    --text:#f2f2f2; --text-muted:#6b6b70; --text-dim:#b4b4b8;
+    --red:#ff1f1f; --green:#7dff5a; --blood:#e10600;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+    --disp:'Rubik Glitch','JetBrains Mono',ui-monospace,monospace;
+  }
+  body{font-family:var(--mono);font-size:13px;letter-spacing:.02em}
+  button,input{font-family:inherit}
+  ::selection{background:var(--blood);color:#fff}
+
+  /* фон: чёрная бездна + кровавое свечение снизу + сканлайны */
+  body::before{
+    background:
+      radial-gradient(90% 45% at 50% 112%, rgba(190,0,0,.34) 0%, rgba(120,0,0,.12) 45%, transparent 75%),
+      radial-gradient(70% 40% at 50% -8%, rgba(255,255,255,.07) 0%, transparent 70%),
+      #000;
+  }
+  body::after{
+    content:'';position:fixed;inset:0;z-index:5;pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px);
+    mix-blend-mode:overlay;opacity:.9;
+  }
+
+  /* панели: острые углы, тонкая рамка, красные угловые метки */
+  .pass-card,.duty-list,.debtors-list,.rand-result,header,.ctx-menu,.modal,.toast{
+    border-radius:0 !important;box-shadow:none !important;
+    -webkit-backdrop-filter:none !important;backdrop-filter:none !important;
+  }
+  .duty-list,.debtors-list,.rand-result,.pass-card,.modal,.ctx-menu{
+    border:1px solid var(--glass-bd);
+    background:rgba(3,3,4,.8);
+  }
+  .pass-card::before,.duty-list::before,.debtors-list::before,.rand-result::before,
+  .ctx-menu::before,.modal::before{
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px);
+    mix-blend-mode:normal;
+  }
+  .pass-card::after,.duty-list::after,.debtors-list::after,.rand-result::after,.ctx-menu::after,.modal::after{
+    content:'';position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:
+      linear-gradient(var(--blood),var(--blood)) 0 0/12px 2px no-repeat,
+      linear-gradient(var(--blood),var(--blood)) 0 0/2px 12px no-repeat,
+      linear-gradient(var(--blood),var(--blood)) 100% 0/12px 2px no-repeat,
+      linear-gradient(var(--blood),var(--blood)) 100% 0/2px 12px no-repeat,
+      linear-gradient(var(--blood),var(--blood)) 0 100%/12px 2px no-repeat,
+      linear-gradient(var(--blood),var(--blood)) 0 100%/2px 12px no-repeat,
+      linear-gradient(var(--blood),var(--blood)) 100% 100%/12px 2px no-repeat,
+      linear-gradient(var(--blood),var(--blood)) 100% 100%/2px 12px no-repeat;
+  }
+
+  /* header */
+  header{
+    background:rgba(0,0,0,.92) !important;
+    border:none !important;border-bottom:1px solid var(--blood) !important;
+    padding:16px 14px 12px;
+  }
+  .hdr-title{
+    font-family:var(--disp);font-weight:400;font-size:20px;letter-spacing:.5px;color:#fff;
+    text-shadow:2px 0 rgba(255,31,31,.75), -2px 0 rgba(0,255,255,.35);
+    animation:glitch 4.2s infinite steps(1);
+  }
+  .hdr-title::after{content:'_';color:var(--blood);margin-left:2px;animation:blink 1s infinite steps(1)}
+  @keyframes blink{50%{opacity:0}}
+  @keyframes glitch{
+    0%,90%,100%{transform:none;text-shadow:2px 0 rgba(255,31,31,.75), -2px 0 rgba(0,255,255,.35)}
+    91%{transform:translate(-3px,0) skewX(-6deg);text-shadow:-4px 0 rgba(255,31,31,.9), 4px 0 rgba(0,255,255,.6)}
+    93%{transform:translate(3px,1px);text-shadow:4px 0 rgba(255,31,31,.9), -3px 0 rgba(0,255,255,.6)}
+    95%{transform:translate(0,-1px) skewX(5deg)}
+    97%{transform:none}
+  }
+
+  /* кнопки-точки: квадраты */
+  .dots-btn{
+    border-radius:0;background:transparent;border:1px solid var(--border2);color:var(--text);
+    width:32px;height:32px;
+  }
+  .dots-btn:active{background:var(--blood);border-color:var(--blood);transform:scale(.9)}
+
+  /* подписи секций */
+  .sec-label{
+    font-size:10px;font-weight:700;letter-spacing:3px;color:var(--text-muted);
+  }
+  .sec-label::before{content:'† ';color:var(--blood);letter-spacing:0}
+  .copy-btn{color:var(--text-muted)}
+  .copy-btn:active{color:var(--blood)}
+
+  /* список */
+  .duty-item,.debtor-item{border-bottom:1px solid var(--border)}
+  .duty-num{font-size:11px;font-weight:700;color:var(--text-muted)}
+  .duty-num .chk{color:inherit}
+  .person-name,.debtor-name{
+    font-size:13px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;
+  }
+  .person-count{
+    border-radius:0;background:transparent;border:1px solid var(--border2);
+    font-weight:700;color:var(--text-muted);
+  }
+  .person-count:active{background:var(--blood);border-color:var(--blood);color:#fff}
+  .person-count.nz{color:#fff;border-color:rgba(225,6,0,.7)}
+  .debtor-name{color:var(--red);text-shadow:0 0 10px rgba(255,31,31,.35)}
+  .debtor-sub,.empty-msg{letter-spacing:.06em;text-transform:uppercase;font-size:10px}
+
+  /* рандомайзер: белый монолит с кровавой тенью */
+  .rand-btn{
+    border-radius:0;background:#fff;color:#000;border:none;
+    box-shadow:4px 4px 0 var(--blood) !important;
+    -webkit-backdrop-filter:none;backdrop-filter:none;
+    font-weight:700;letter-spacing:.35em;text-transform:uppercase;padding:14px;
+  }
+  .rand-btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--blood) !important}
+  .rand-result{border-radius:0}
+  .rand-result.done{border-color:var(--blood)}
+  .rr-label{letter-spacing:3px;color:var(--text-muted)}
+  .rr-name{font-family:var(--disp);font-weight:400;letter-spacing:.5px;text-transform:uppercase}
+  .rr-name.land{color:var(--red);text-shadow:2px 0 rgba(255,31,31,.6), -2px 0 rgba(0,255,255,.3), 0 0 22px rgba(255,31,31,.5)}
+  .rr-close{border-radius:0;background:transparent;border:1px solid var(--border2);z-index:4}
+  .rr-close:active{background:var(--blood);border-color:var(--blood)}
+
+  /* меню */
+  .ov-bd{background:rgba(0,0,0,.72)}
+  .ctx-menu{border:1px solid var(--border2);background:var(--pop);border-top:2px solid var(--blood)}
+  .ctx-hdr{letter-spacing:3px;color:var(--text-dim)}
+  .ctx-hdr::before{content:'> ';color:var(--blood)}
+  .ctx-item{font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+  .ctx-item:active,.sub-item:active{background:rgba(225,6,0,.22)}
+  .p-name{text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+  .p-btn{border-radius:0;background:transparent}
+  .p-btn:active{background:var(--blood);border-color:var(--blood)}
+  .l-input{border-radius:0;background:#000;letter-spacing:.2em}
+  .l-input:focus,.modal input:focus{border-color:var(--blood)}
+  .l-del{border-radius:0;background:transparent;text-transform:uppercase;letter-spacing:.2em;font-size:12px}
+  .l-del:active{background:var(--blood);color:#fff}
+
+  /* модалка */
+  .modal{border:1px solid var(--border2);border-top:2px solid var(--blood);background:var(--pop)}
+  .modal-title{letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+  .modal input{border-radius:0;background:#000}
+  .modal-btns button{border-radius:0;background:transparent;text-transform:uppercase;letter-spacing:.15em;font-size:12px}
+  .modal-btns button.ok{background:#fff;color:#000;border-color:#fff;box-shadow:3px 3px 0 var(--blood)}
+
+  /* gate */
+  .pass-badge{border-radius:0;transform:rotate(45deg);border-color:var(--blood);background:rgba(225,6,0,.1)}
+  .pass-badge svg{transform:rotate(-45deg)}
+  #gate h1{font-family:var(--disp);font-weight:400;letter-spacing:1px;text-shadow:2px 0 rgba(255,31,31,.7), -2px 0 rgba(0,255,255,.3)}
+  #gate p{letter-spacing:.04em}
+  #gateId.big{border-radius:0}
+
+  /* toast */
+  .toast{
+    background:var(--pop) !important;border:1px solid var(--border2) !important;border-left:3px solid var(--blood) !important;
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:10px 16px;
+  }
+  .toast::before{content:'> ';color:var(--blood)}
 </style>
 </head>
 <body>
@@ -588,7 +751,8 @@ var setEmojiMode = function(){};
   // а это заставляет браузер каждый раз пересчитывать размытие для всех них разом
   var dpr = Math.min(window.devicePixelRatio || 1, 1.5), W = 0, H = 0, flakes = [], inited = false;
   var EMOJI = '🤫';
-  var EMOJI_FONT = '15px sans-serif'; // фиксированный размер шрифта — не пересчитывается на каждую снежинку
+  var EMOJI_FONT = '15px sans-serif';
+  var GLYPH_FONT = '600 11px monospace', GLYPHS = '01アカサタナハマヤラワ†‡ΞΛ'; // фиксированный размер шрифта — не пересчитывается на каждую снежинку
   var FRAME_MS = 1000/30; // троттлинг до ~30 кадров/сек вместо безлимитных 60
   var lastT = 0;
 
@@ -606,7 +770,8 @@ var setEmojiMode = function(){};
   }
   function mk(initial){
     return { x:Math.random()*W, y:initial?Math.random()*H:-6, r:0.8+Math.random()*1.5,
-             v:0.25+Math.random()*0.55, a:0.35+Math.random()*0.55, ph:Math.random()*6.28, sw:0.2+Math.random()*0.5 };
+             v:0.45+Math.random()*0.9, a:0.25+Math.random()*0.5, ph:Math.random()*6.28, sw:0.05+Math.random()*0.15,
+             ch:GLYPHS.charAt(Math.floor(Math.random()*GLYPHS.length)), red:Math.random()<0.28, tt:0 };
   }
   function draw(t, dt){
     var prog = emojiDur > 0 ? (t - emojiT0) / emojiDur : 1;
@@ -615,17 +780,20 @@ var setEmojiMode = function(){};
     var step = dt / 16.6; // нормализуем скорость движения под реальный интервал кадра
     ctx.clearRect(0,0,W,H);
     var drawDots = em < 0.995, drawEmoji = em > 0.005;
-    if (drawDots) ctx.fillStyle = '#fff';
-    if (drawEmoji) { ctx.font = EMOJI_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (var i=0;i<flakes.length;i++){
       var f = flakes[i];
       f.y += f.v*step; f.x += Math.sin(t/1500 + f.ph) * f.sw * 0.6 * step;
       if (f.y > H+6) { flakes[i] = f = mk(false); }
       if (drawDots) {
+        // matrix-глиф: иногда меняет символ, красные — кровавые, остальные тусклые белые
+        if ((f.tt += step) > 14) { f.tt = 0; f.ch = GLYPHS.charAt(Math.floor(Math.random()*GLYPHS.length)); }
+        ctx.font = GLYPH_FONT; ctx.fillStyle = f.red ? '#ff1f1f' : '#fff';
         ctx.globalAlpha = f.a * (1 - em);
-        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.2832); ctx.fill();
+        ctx.fillText(f.ch, f.x, f.y);
       }
       if (drawEmoji) {
+        ctx.font = EMOJI_FONT;
         ctx.globalAlpha = f.a * em;
         ctx.fillText(EMOJI, f.x, f.y);
       }
@@ -1164,6 +1332,7 @@ function toast(msg){
 if (TG) {
   TG.ready();
   TG.expand();
+  try { TG.setHeaderColor('#000000'); TG.setBackgroundColor('#000000'); } catch(e) {}
 }
 updateSoundBtn();
 checkAccess();
