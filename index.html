@@ -281,6 +281,7 @@
   .j-list{max-height:114px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   .j-row{height:38px;line-height:18px;padding:10px 13px;font-size:13px;font-family:monospace;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap}
   .j-row:last-child{border-bottom:none}
+  .j-row.last{box-shadow:inset 0 0 0 1px var(--ice);background:rgba(127,216,239,.08);border-bottom-color:transparent;color:var(--text)}
   .j-row b{color:var(--text);font-weight:600}
   .j-empty{padding:12px 13px;font-size:13px;color:var(--text-muted)}
 
@@ -905,7 +906,7 @@ function openJournal(e, name) {
   } else {
     var list = document.createElement('div'); list.className = 'j-list';
     for (var i = a.length - 1; i >= 0; i--) { // новые сверху
-      var r = document.createElement('div'); r.className = 'j-row';
+      var r = document.createElement('div'); r.className = 'j-row' + (i === a.length - 1 ? ' last' : '');
       r.textContent = fmtLog(a[i][0]) + ' - ' + a[i][1];
       list.appendChild(r);
     }
