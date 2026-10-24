@@ -278,8 +278,8 @@
 
   /* TOAST */
   /* JOURNAL */
-  .j-list{max-height:min(46vh,340px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-  .j-row{padding:10px 13px;font-size:13px;font-family:monospace;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap}
+  .j-list{max-height:114px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .j-row{height:38px;line-height:18px;padding:10px 13px;font-size:13px;font-family:monospace;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap}
   .j-row:last-child{border-bottom:none}
   .j-row b{color:var(--text);font-weight:600}
   .j-empty{padding:12px 13px;font-size:13px;color:var(--text-muted)}
@@ -896,7 +896,7 @@ function openJournal(e, name) {
   e.stopPropagation();
   sfx.open();
   posMenu(e);
-  buildMenu('Журнал', []);
+  buildMenu('Журнал - ' + name, []);
   var body = document.getElementById('ctxBody');
   var a = S.log[name] || [];
   if (!a.length) {
