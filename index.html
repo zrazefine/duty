@@ -41,14 +41,14 @@
   /* базовый вид "стекла": прозрачная подложка + размытие/насыщенность того, что за ней,
      плюс мягкий блик по верхней кромке — имитация Liquid Glass */
   .glass,
-  .pass-card,.duty-list,.debtors-list,.rand-result,header,.ctx-menu,.modal,.toast{
+  .pass-card,.duty-list,.debtors-list,.rand-result,header,.ctx-menu,.toast{
     position:relative;
     background:var(--glass);
     border:1px solid var(--glass-bd);
     -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
   }
   .pass-card::before,.duty-list::before,.debtors-list::before,.rand-result::before,
-  .ctx-menu::before,.modal::before{
+  .ctx-menu::before{
     content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
     background:linear-gradient(135deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 30%,
                 rgba(255,255,255,0) 68%, rgba(255,255,255,.05) 100%);
@@ -277,27 +277,12 @@
   .l-del:active{transform:scale(.96);background:rgba(232,16,44,.18)}
 
   /* TOAST */
-  /* EDIT MODAL */
-  .modal-bg{position:fixed;inset:0;z-index:300;background:rgba(3,4,8,.55);display:none;align-items:flex-start;justify-content:center;padding-top:18vh}
-  .modal-bg.show{display:flex}
-  .modal{
-    background:var(--pop);-webkit-backdrop-filter:var(--pop-blur);backdrop-filter:var(--pop-blur);
-    border:1px solid var(--border2);border-radius:var(--r-md);padding:16px;width:min(280px,86vw);
-    box-shadow:0 20px 60px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.07);
-  }
-  .modal-title{font-size:13px;color:var(--text-dim);margin-bottom:10px}
-  .modal input{
-    width:100%;font-size:16px;padding:10px 12px;background:rgba(0,0,0,.5);border:1px solid var(--border2);
-    border-radius:var(--r-sm);outline:none;color:var(--text);font-family:monospace;text-align:center;
-  }
-  .modal-btns{display:flex;gap:8px;margin-top:12px}
-  .modal-btns button{
-    flex:1;padding:10px;border-radius:var(--r-sm);border:1px solid var(--border2);
-    background:transparent;color:var(--text-dim);font-size:14px;cursor:pointer;
-    transition:transform .12s cubic-bezier(.34,1.56,.64,1),background .12s;
-  }
-  .modal-btns button:active{transform:scale(.96)}
-  .modal-btns button.ok{background:var(--ice);color:#000;border-color:var(--ice);font-weight:600}
+  /* JOURNAL */
+  .j-list{max-height:min(46vh,340px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .j-row{padding:10px 13px;font-size:13px;font-family:monospace;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap}
+  .j-row:last-child{border-bottom:none}
+  .j-row b{color:var(--text);font-weight:600}
+  .j-empty{padding:12px 13px;font-size:13px;color:var(--text-muted)}
 
   .toast{
     position:fixed;
@@ -369,16 +354,6 @@
   </div>
 </div>
 
-<div class="modal-bg" id="editBg" onclick="if(event.target===this)closeEdit()">
-  <div class="modal">
-    <div class="modal-title" id="editTitle"></div>
-    <input id="editInput" type="number" inputmode="numeric" min="0" max="9999">
-    <div class="modal-btns">
-      <button onclick="closeEdit()">Отмена</button>
-      <button class="ok" onclick="applyEdit()">Сохранить</button>
-    </div>
-  </div>
-</div>
 <div class="toast" id="toast"></div>
 <audio id="easterEggTrack" src="office.mp3" preload="auto" playsinline></audio>
 
@@ -520,6 +495,7 @@ function normalize(o) {
   if (!o || typeof o !== 'object') o = {};
   if (!o.counts || typeof o.counts !== 'object') o.counts = {};
   if (!Array.isArray(o.debtors)) o.debtors = [];
+  if (!o.log || typeof o.log !== 'object') o.log = {};
   PAIRS.forEach(function(p){
     if (o.counts[p.a] === undefined) o.counts[p.a] = 0;
     if (o.counts[p.b] === undefined) o.counts[p.b] = 0;
@@ -543,14 +519,28 @@ function persistLocal() {
   try { localStorage.setItem('duty_v5', JSON.stringify(S)); } catch(e) {}
 }
 
+// журнал лежит отдельными ключами (dlog_<индекс>), по одному на человека:
+// на одно значение у телеграма лимит 4096, общий json с журналом в него не влезет
+var NAMES = [];
+PAIRS.forEach(function(p){ NAMES.push(p.a); NAMES.push(p.b); });
+function logKey(name){ return 'dlog_' + NAMES.indexOf(name); }
+var _dirty = {};
+function markAllDirty(){ NAMES.forEach(function(n){ _dirty[n] = 1; }); }
+
 var _ct;
 function cloudPush() {
   if (!CS) return;
   clearTimeout(_ct);
   _ct = setTimeout(function(){
-    var json = JSON.stringify(S);
+    var json = JSON.stringify({counts:S.counts, debtors:S.debtors, last:S.last, ts:S.ts});
     if (json.length > 4096) { toast('Облако: данные не влезли (>4096)'); return; } // лимит тг на значение
     CS.setItem('duty_v5', json, function(err){ if (err) console.log('cloud set', err); });
+    var d = _dirty; _dirty = {};
+    Object.keys(d).forEach(function(n){
+      CS.setItem(logKey(n), JSON.stringify(S.log[n] || []), function(err){
+        if (err) { console.log('cloud log', err); _dirty[n] = 1; }
+      });
+    });
   }, 400);
 }
 
@@ -563,10 +553,17 @@ function cloudPull() {
     try { if (val) c = normalize(JSON.parse(val)); } catch(e) {}
     var lt = S.ts || 0;
     if (c && (c.ts || 0) > lt) {
-      S = c; persistLocal(); render();
-      toast('Данные подтянуты из облака');
+      CS.getItems(NAMES.map(logKey), function(err2, vals){
+        if (!err2 && vals) {
+          NAMES.forEach(function(n){
+            try { var a = JSON.parse(vals[logKey(n)] || '[]'); if (Array.isArray(a)) c.log[n] = a; } catch(e) {}
+          });
+        } else { c.log = S.log; }
+        S = normalize(c); persistLocal(); render();
+        toast('Данные подтянуты из облака');
+      });
     } else if (!c || (c.ts || 0) < lt) {
-      cloudPush();
+      markAllDirty(); cloudPush();
     }
   });
 }
@@ -782,7 +779,7 @@ function pRow(name, count) {
   }
   return '<div class="person-row">' +
     nameHtml +
-    '<button class="person-count '+(count>0?'nz':'')+'" onclick="openEdit(\''+name+'\')">'+count+'</button>' +
+    '<button class="person-count '+(count>0?'nz':'')+'" onclick="openJournal(event,\''+name+'\')">'+count+'</button>' +
     '</div>';
 }
 
@@ -876,6 +873,47 @@ function buildMenu(headerText, items) {
   });
 }
 
+// ── JOURNAL ───────────────────────────────────────────────────────────────────
+// запись: [timestamp_ms, число_дежурств_после_+]; храним последние LOG_MAX на человека
+var LOG_MAX = 150;
+function logAdd(name, n) {
+  var a = S.log[name] || (S.log[name] = []);
+  a.push([Date.now(), n]);
+  if (a.length > LOG_MAX) a.splice(0, a.length - LOG_MAX);
+  _dirty[name] = 1;
+}
+// «−» откатывает последнюю запись, только если она соответствует текущему числу
+function logUndo(name, nBefore) {
+  var a = S.log[name];
+  if (a && a.length && a[a.length-1][1] === nBefore) { a.pop(); _dirty[name] = 1; }
+}
+function fmtLog(ts) {
+  var d = new Date(ts);
+  function z(x){ return (x < 10 ? '0' : '') + x; }
+  return z(d.getDate()) + '.' + z(d.getMonth()+1) + '.' + d.getFullYear() + ' / ' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+function openJournal(e, name) {
+  e.stopPropagation();
+  sfx.open();
+  posMenu(e);
+  buildMenu('Журнал', []);
+  var body = document.getElementById('ctxBody');
+  var a = S.log[name] || [];
+  if (!a.length) {
+    var em = document.createElement('div'); em.className = 'j-empty'; em.textContent = 'Записей нет';
+    body.appendChild(em);
+  } else {
+    var list = document.createElement('div'); list.className = 'j-list';
+    for (var i = a.length - 1; i >= 0; i--) { // новые сверху
+      var r = document.createElement('div'); r.className = 'j-row';
+      r.textContent = fmtLog(a[i][0]) + ' - ' + a[i][1];
+      list.appendChild(r);
+    }
+    body.appendChild(list);
+  }
+  showMenu();
+}
+
 // ── PAIR MENU ─────────────────────────────────────────────────────────────────
 // строка человека: число + «+» «−» «✕». меню не закрывается, жми сколько надо
 function pairPersonRow(pairId, name, slot) {
@@ -890,10 +928,10 @@ function pairPersonRow(pairId, name, slot) {
   }
   row.appendChild(nm); row.appendChild(cnt);
   row.appendChild(btn('plus', '+', function(){
-    S.counts[name] = (S.counts[name] || 0) + 1; save(); render(); upd(); sfx.plus();
+    S.counts[name] = (S.counts[name] || 0) + 1; logAdd(name, S.counts[name]); save(); render(); upd(); sfx.plus();
   }));
   row.appendChild(btn('minus', '\u2212', function(){
-    if ((S.counts[name] || 0) > 0) { S.counts[name]--; save(); render(); upd(); sfx.minus(); }
+    if ((S.counts[name] || 0) > 0) { logUndo(name, S.counts[name]); S.counts[name]--; save(); render(); upd(); sfx.minus(); }
   }));
   row.appendChild(btn('x', '\u2715', function(){
     if (addDebtor(name, pairId, slot)) { save(); render(); toast(name+' — в пропустившие'); sfx.remove(); }
@@ -1010,6 +1048,7 @@ function openDebtorMenu(e, idx) {
 function markDebtorDone(idx) {
   var d = S.debtors[idx];
   S.counts[d.name] = (S.counts[d.name]||0)+1;
+  logAdd(d.name, S.counts[d.name]);
   S.debtors.splice(idx,1);
   save(); render();
   toast(d.name+' — отдежурил ✓');
@@ -1031,8 +1070,8 @@ function addDebtor(name,pairId,slot){
 
 // стереть всё: счётчики в ноль и список пропустивших пустой
 function doResetAll(){
-  S={ debtors:[], counts:defaultCounts() };
-  save(); render(); hideRand();
+  S={ debtors:[], counts:defaultCounts(), log:{} };
+  markAllDirty(); save(); render(); hideRand();
   toast('Всё стёрто');
 }
 
@@ -1106,35 +1145,6 @@ function hideRand(){
   document.getElementById('randResult').classList.remove('show','done');
   sfx.close();
 }
-
-// ── EDIT COUNT ────────────────────────────────────────────────────────────────
-var _editName = null;
-function openEdit(name) {
-  sfx.open();
-  _editName = name;
-  document.getElementById('editTitle').textContent = name + ' — число дежурств';
-  var inp = document.getElementById('editInput');
-  inp.value = S.counts[name] || 0;
-  document.getElementById('editBg').classList.add('show');
-  setTimeout(function(){ inp.focus(); inp.select(); }, 50);
-}
-function closeEdit() {
-  document.getElementById('editBg').classList.remove('show');
-  _editName = null;
-  sfx.close();
-}
-function applyEdit() {
-  var v = parseInt(document.getElementById('editInput').value, 10);
-  if (isNaN(v) || v < 0 || v > 9999) { toast('Введи число от 0 до 9999'); sfx.warning(); return; }
-  var name = _editName;
-  S.counts[name] = v;
-  save(); render(); closeEdit();
-  toast(name + ': ' + v);
-  sfx.copy();
-}
-document.getElementById('editInput').addEventListener('keydown', function(e){
-  if (e.key === 'Enter') applyEdit();
-});
 
 // ── COPY COUNTS ───────────────────────────────────────────────────────────────
 function copyCounts() {
