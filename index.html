@@ -7,7 +7,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:#000;
@@ -15,11 +15,12 @@
     --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.16);
     --glass:rgba(255,255,255,.04); --glass-bd:rgba(255,255,255,.12);
     --glass-blur:blur(6px) saturate(120%);
-    --pop:rgba(10,10,11,.75); --pop-blur:blur(16px) saturate(130%);
-    --text:#fff; --text-muted:#6b6b6f; --text-dim:#9d9da1;
+    --pop:rgba(8,10,11,.75); --pop-blur:blur(16px) saturate(130%);
+    --text:#fff; --text-muted:#6b6b6f; --text-dim:#9d9da1; --cream:#f1ece1;
     --green:#f2f2f2; --red:#e8102c; --red-dim:rgba(232,16,44,.5);
+    --ice:#7fd8ef; --ice-dim:rgba(127,216,239,.5);
     --r-lg:10px; --r-md:6px; --r-sm:3px;
-    --font-display:'Pirata One', 'Times New Roman', serif;
+    --font-display:'Archivo Black', 'Helvetica Neue', Arial, sans-serif;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
@@ -33,7 +34,13 @@
   /* BACKGROUND — чёрный, резкий виньет, зерно, едва заметный крест-водяной знак */
   body::before{
     content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-    background:radial-gradient(130% 90% at 50% 0%, #121213 0%, #050506 45%, #000 100%);
+    background:radial-gradient(130% 70% at 50% -5%, rgba(110,180,205,.1) 0%, rgba(6,9,11,.9) 40%, #000 78%);
+  }
+  body::after{
+    content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.05;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(150,210,230,.5) 0 1px, transparent 1px 64px),
+      repeating-linear-gradient(90deg, rgba(150,210,230,.5) 0 1px, transparent 1px 64px);
   }
   #snow{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 
@@ -74,7 +81,7 @@
   .pass-badge svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
   .pass-badge.bad{border-color:var(--red);background:rgba(232,16,44,.1)}
   .pass-badge.bad svg{stroke:var(--red)}
-  #gate h1{font-family:var(--font-display);font-size:26px;font-weight:400;letter-spacing:.4px}
+  #gate h1{font-family:var(--font-display);font-size:21px;font-weight:400;letter-spacing:0;text-transform:uppercase;color:var(--cream)}
   #gate p{font-size:13px;color:var(--text-dim);line-height:1.45}
   #gateId{font-family:monospace;font-size:12px;color:var(--text-muted);letter-spacing:1px;margin-top:2px}
   #gateId.big{
@@ -92,8 +99,8 @@
     background:rgba(0,0,0,.72);
   }
   .hdr-title{
-    font-family:var(--font-display);font-size:24px;font-weight:400;flex:1;
-    letter-spacing:.5px;line-height:1;
+    font-family:var(--font-display);font-size:19px;font-weight:400;flex:1;
+    letter-spacing:0;line-height:1.15;text-transform:uppercase;color:var(--cream);
   }
   .dots-btn{
     background:transparent;border:1px solid var(--border2);color:var(--text-dim);
@@ -102,7 +109,7 @@
     border-radius:var(--r-sm);flex-shrink:0;
     transition:transform .15s cubic-bezier(.34,1.56,.64,1),border-color .15s,color .15s;
   }
-  .dots-btn:active{transform:scale(.88);border-color:var(--red);color:var(--text)}
+  .dots-btn:active{transform:scale(.88);border-color:var(--ice);color:var(--text)}
 
   .sec-label{
     font-size:10px;font-weight:600;letter-spacing:1.4px;
@@ -158,13 +165,13 @@
   .rand-wrap{padding:14px}
   .rand-btn{
     width:100%;color:#fff;cursor:pointer;
-    border:1px solid var(--red);
+    border:1px solid var(--ice);
     border-radius:var(--r-sm);
-    background:rgba(232,16,44,.08);
+    background:rgba(127,216,239,.08);
     padding:14px;font-size:12px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;
     transition:transform .15s cubic-bezier(.34,1.56,.64,1), background .15s;
   }
-  .rand-btn:active{transform:scale(.97);background:rgba(232,16,44,.22)}
+  .rand-btn:active{transform:scale(.97);background:rgba(127,216,239,.22)}
   .rand-btn:disabled{opacity:.5;cursor:default;transform:none}
   .rand-result{
     margin-top:10px;overflow:hidden;
@@ -173,12 +180,12 @@
     display:none;flex-direction:column;align-items:center;text-align:center;
   }
   .rand-result.show{display:flex;animation:rrIn .3s ease-out}
-  .rand-result.done{border-color:rgba(232,16,44,.5);animation:ringPulse .9s ease-out}
+  .rand-result.done{border-color:var(--ice-dim);animation:ringPulse .9s ease-out}
   .rr-label{font-size:10px;color:var(--text-muted);letter-spacing:1.6px;text-transform:uppercase}
   .rr-reel{height:46px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:10px 0 4px}
-  .rr-name{font-family:var(--font-display);font-size:34px;font-weight:400;letter-spacing:.5px;color:var(--text-dim);white-space:nowrap}
+  .rr-name{font-family:var(--font-display);font-size:26px;font-weight:400;letter-spacing:0;text-transform:uppercase;color:var(--text-dim);white-space:nowrap}
   .rr-name.tick{animation:tick 120ms ease-out}
-  .rr-name.land{color:var(--red);text-shadow:0 0 22px rgba(232,16,44,.55);animation:land .6s cubic-bezier(.34,1.56,.64,1)}
+  .rr-name.land{color:var(--cream);text-shadow:0 0 22px rgba(127,216,239,.6);animation:land .6s cubic-bezier(.34,1.56,.64,1)}
   .rr-sub{font-size:12px;color:var(--text-muted);min-height:16px;opacity:0;transition:opacity .4s}
   .rr-sub.in{opacity:1}
   .rr-close{
@@ -197,7 +204,7 @@
   @keyframes rrIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   @keyframes tick{from{transform:translateY(-55%);opacity:0;filter:blur(2px)}to{transform:none;opacity:1;filter:none}}
   @keyframes land{0%{transform:scale(.8);opacity:.3}55%{transform:scale(1.18);opacity:1}100%{transform:scale(1)}}
-  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(232,16,44,.45)}100%{box-shadow:0 0 0 18px rgba(232,16,44,0)}}
+  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(127,216,239,.4)}100%{box-shadow:0 0 0 18px rgba(127,216,239,0)}}
   @keyframes spark{
     from{transform:translate(-50%,-50%) scale(1);opacity:1}
     to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.3);opacity:0}
@@ -296,7 +303,7 @@
     transition:transform .12s cubic-bezier(.34,1.56,.64,1),background .12s;
   }
   .modal-btns button:active{transform:scale(.96)}
-  .modal-btns button.ok{background:var(--red);color:#fff;border-color:var(--red);font-weight:600}
+  .modal-btns button.ok{background:var(--ice);color:#000;border-color:var(--ice);font-weight:600}
 
   .toast{
     position:fixed;
@@ -1093,7 +1100,7 @@ function burst(){
     var a = (i/16)*6.2832 + Math.random()*0.4, d = 55 + Math.random()*45;
     sp.style.setProperty('--dx', Math.round(Math.cos(a)*d)+'px');
     sp.style.setProperty('--dy', Math.round(Math.sin(a)*d*0.6)+'px');
-    sp.style.background = (i%3===0) ? '#e8102c' : '#fff';
+    sp.style.background = (i%3===0) ? '#7fd8ef' : '#f1ece1';
     box.appendChild(sp);
   }
   setTimeout(function(){ box.innerHTML = ''; }, 900);
