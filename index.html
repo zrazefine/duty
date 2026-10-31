@@ -581,6 +581,16 @@ function normalize(o) {
   if (!Array.isArray(o.debtors)) o.debtors = [];
   if (!o.log || typeof o.log !== 'object') o.log = {};
   if (o.last === undefined) o.last = null; // Firestore не принимает undefined в полях документа
+  // миграция старого формата записей журнала [t,n] (массив) → {t,n} (объект):
+  // Firestore не поддерживает вложенные массивы, старые локальные данные могли
+  // остаться в этом формате и заново ломать сохранение при первом же save()
+  Object.keys(o.log).forEach(function(name){
+    var arr = o.log[name];
+    if (!Array.isArray(arr)) { o.log[name] = []; return; }
+    o.log[name] = arr.map(function(e){
+      return Array.isArray(e) ? {t:e[0], n:e[1]} : e;
+    });
+  });
   PAIRS.forEach(function(p){
     if (o.counts[p.a] === undefined) o.counts[p.a] = 0;
     if (o.counts[p.b] === undefined) o.counts[p.b] = 0;
@@ -609,13 +619,8 @@ function cloudPush() {
   if (!db) return;
   clearTimeout(_ct);
   _ct = setTimeout(function(){
-    // .set() может бросить СИНХРОННО (до создания промиса), например если в
-    // данных попадётся undefined — Firestore такое не принимает. try/catch
-    // гарантирует, что это попадёт в консоль, а не провалится молча.
-    try {
-      appStateRef().set({counts:S.counts, debtors:S.debtors, last:(S.last==null?null:S.last), log:S.log, ts:S.ts})
-        .catch(function(err){ console.log('cloud push', err); });
-    } catch(err) { console.log('cloud push sync throw', err); }
+    appStateRef().set({counts:S.counts, debtors:S.debtors, last:S.last, log:S.log, ts:S.ts})
+      .catch(function(err){ console.log('cloud push', err); });
   }, 400);
 }
 
@@ -665,33 +670,20 @@ function forceSave() {
     sfx.warning();
   }, 7000);
 
-  // .set() может бросить СИНХРОННО (до создания промиса) — например если в
-  // данных попадётся undefined, который Firestore не принимает. Раньше это
-  // срывало всю функцию молча, и срабатывал только таймаут выше.
-  try {
-    appStateRef().set({counts:S.counts, debtors:S.debtors, last:(S.last==null?null:S.last), log:S.log, ts:S.ts})
-      .then(function(){
-        if (settled) return;
-        settled = true; _forceSaveBusy = false;
-        clearTimeout(timeoutId);
-        toast('Данные сохранены'); sfx.success();
-      })
-      .catch(function(err){
-        if (settled) return;
-        settled = true; _forceSaveBusy = false;
-        clearTimeout(timeoutId);
-        console.log('force save', err);
-        toast('Не удалось сохранить: ' + (err && err.code ? err.code : 'ошибка')); sfx.warning();
-      });
-  } catch(err) {
-    if (!settled) {
+  appStateRef().set({counts:S.counts, debtors:S.debtors, last:S.last, log:S.log, ts:S.ts})
+    .then(function(){
+      if (settled) return;
       settled = true; _forceSaveBusy = false;
       clearTimeout(timeoutId);
-      console.log('force save sync throw', err);
-      toast('Не удалось сохранить: ' + (err && err.message ? err.message : 'ошибка данных'));
-      sfx.warning();
-    }
-  }
+      toast('Данные сохранены'); sfx.success();
+    })
+    .catch(function(err){
+      if (settled) return;
+      settled = true; _forceSaveBusy = false;
+      clearTimeout(timeoutId);
+      console.log('force save', err);
+      toast('Не удалось сохранить: ' + (err && err.code ? err.code : 'ошибка')); sfx.warning();
+    });
 }
 
 // initialise S immediately
@@ -1089,17 +1081,20 @@ function buildMenu(headerText, items) {
 }
 
 // ── JOURNAL ───────────────────────────────────────────────────────────────────
-// запись: [timestamp_ms, число_дежурств_после_+]; храним последние LOG_MAX на человека
+// запись: {t:timestamp_ms, n:число_дежурств_после_+}; храним последние LOG_MAX на человека.
+// ВАЖНО: запись должна быть объектом, а не массивом [t,n] — Firestore не
+// поддерживает вложенные массивы (массив массивов) в одном поле документа,
+// .set() падает с "Nested arrays are not supported".
 var LOG_MAX = 150;
 function logAdd(name, n) {
   var a = S.log[name] || (S.log[name] = []);
-  a.push([Date.now(), n]);
+  a.push({t:Date.now(), n:n});
   if (a.length > LOG_MAX) a.splice(0, a.length - LOG_MAX);
 }
 // «−» откатывает последнюю запись, только если она соответствует текущему числу
 function logUndo(name, nBefore) {
   var a = S.log[name];
-  if (a && a.length && a[a.length-1][1] === nBefore) { a.pop(); }
+  if (a && a.length && a[a.length-1].n === nBefore) { a.pop(); }
 }
 function fmtLog(ts) {
   var d = new Date(ts);
@@ -1120,7 +1115,7 @@ function openJournal(e, name) {
     var list = document.createElement('div'); list.className = 'j-list';
     for (var i = a.length - 1; i >= 0; i--) { // новые сверху
       var r = document.createElement('div'); r.className = 'j-row' + (i === a.length - 1 ? ' last' : '');
-      r.textContent = fmtLog(a[i][0]) + ' - ' + a[i][1];
+      r.textContent = fmtLog(a[i].t) + ' - ' + a[i].n;
       list.appendChild(r);
     }
     body.appendChild(list);
@@ -1443,7 +1438,7 @@ function addDebtor(name,pairId,slot){
 
 // стереть всё: счётчики в ноль и список пропустивших пустой
 function doResetAll(){
-  S={ debtors:[], counts:defaultCounts(), log:{}, last:null };
+  S={ debtors:[], counts:defaultCounts(), log:{} };
   save(); render(); hideRand();
   toast('Всё стёрто');
 }
