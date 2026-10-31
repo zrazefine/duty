@@ -62,7 +62,7 @@
   }
   .pass-card{
     width:100%;max-width:320px;
-    display:flex;flex-direction:column;align-items:center;gap:12px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
     padding:34px 22px 28px;text-align:center;
     border-radius:var(--r-lg);
     box-shadow:0 24px 70px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08);
@@ -75,7 +75,7 @@
   .pass-badge svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
   .pass-badge.bad{border-color:var(--red);background:rgba(232,16,44,.1)}
   .pass-badge.bad svg{stroke:var(--red)}
-  #gate h1{font-family:var(--font-display);font-size:21px;font-weight:400;letter-spacing:0;text-transform:uppercase;color:var(--cream)}
+  #gate h1{font-family:var(--font-display);font-size:21px;font-weight:400;letter-spacing:0;line-height:1.15;text-transform:uppercase;color:var(--cream);font-style:normal}
   #gate p{font-size:13px;color:var(--text-dim);line-height:1.45}
   #gateId{font-family:monospace;font-size:12px;color:var(--text-muted);letter-spacing:1px;margin-top:2px}
   #gateId.big{
@@ -300,7 +300,7 @@
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s}
 
   /* GATE SLOT — форма заявки / статусные сообщения на экране входа */
-  .gate-slot{width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:6px}
+  .gate-slot{width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:0}
   .gate-sub{font-size:13px;color:var(--text-dim);line-height:1.45;text-align:center}
   .gate-input{
     width:100%;font-size:16px;padding:12px 14px;background:rgba(0,0,0,.5);
@@ -628,6 +628,18 @@ function save() {
   S.ts = Date.now();
   persistLocal();
   cloudPush();
+}
+
+// принудительное сохранение: пишет в облако немедленно (без дебаунса) и
+// показывает результат — для случаев, когда у других не подтягивается обновление
+function forceSave() {
+  S.ts = Date.now();
+  persistLocal();
+  clearTimeout(_ct);
+  if (!db) { toast('Нет связи с сервером'); sfx.warning(); return; }
+  appStateRef().set({counts:S.counts, debtors:S.debtors, last:S.last, log:S.log, ts:S.ts})
+    .then(function(){ toast('Данные сохранены'); sfx.success(); })
+    .catch(function(err){ console.log('force save', err); toast('Не удалось сохранить'); sfx.warning(); });
 }
 
 // initialise S immediately
@@ -1156,9 +1168,16 @@ function openHeaderMenu(e) {
   // пункт "Рассмотрение заявок" — открывает постраничное меню (заявки / чёрный список)
   var apps = document.createElement('div');
   apps.className = 'ctx-item';
-  apps.innerHTML = '<span>\u2630</span> Рассмотрение заявок';
+  apps.innerHTML = 'Рассмотрение заявок';
   apps.onclick = function(){ openApplicationsPanel(); };
   body.appendChild(apps);
+
+  // пункт "Сохранить данные" — принудительно пушит текущее состояние в облако
+  var saveBtn = document.createElement('div');
+  saveBtn.className = 'ctx-item';
+  saveBtn.innerHTML = 'Сохранить данные';
+  saveBtn.onclick = function(){ forceSave(); };
+  body.appendChild(saveBtn);
 
   // пункт "Звук: вкл/выкл" — переключается тапом, меню не закрывается
   var snd = document.createElement('div');
@@ -1189,9 +1208,10 @@ function openHeaderMenu(e) {
 }
 
 // ── РАССМОТРЕНИЕ ЗАЯВОК (постраничное меню: заявки ⇄ чёрный список) ──────────
-var _appsPage = 0;          // 0 = заявки на рассмотрении, 1 = чёрный список
+var _appsPage = 0;          // 0 = заявки на рассмотрении, 1 = чёрный список, 2 = принятые
 var _pendingApps = [];      // [{uid, name, ts}]
 var _blacklistArr = [];     // [{uid, name, ts}]
+var _approvedArr = [];      // [{uid, name, ts}]
 
 // живые подписки — работают, пока открыт график у владельца; список обновляется
 // сам, даже если меню заявок сейчас открыто на экране
@@ -1207,6 +1227,11 @@ function startAdminListeners() {
     snap.forEach(function(doc){ _blacklistArr.push(doc.data()); });
     if (_currentMenu === 'apps') renderApplicationsPanel();
   }, function(err){ console.log('blacklist sync', err); });
+  db.collection('approved').onSnapshot(function(snap){
+    _approvedArr = [];
+    snap.forEach(function(doc){ _approvedArr.push(doc.data()); });
+    if (_currentMenu === 'apps') renderApplicationsPanel();
+  }, function(err){ console.log('approved sync', err); });
 }
 
 function openApplicationsPanel(e) {
@@ -1223,15 +1248,15 @@ function renderApplicationsPanel() {
   hdr.className = 'ctx-hdr pg';
   hdr.innerHTML = '';
   var title = document.createElement('span');
-  title.textContent = (_appsPage === 0) ? 'Рассмотрение заявок' : 'Чёрный список';
+  title.textContent = (_appsPage === 0) ? 'Рассмотрение заявок' : (_appsPage === 1) ? 'Чёрный список' : 'Принятые';
   var arrows = document.createElement('div');
   arrows.className = 'pg-arrows';
   var prev = document.createElement('button');
   prev.className = 'pg-arrow'; prev.textContent = '<';
-  prev.onclick = function(ev){ ev.stopPropagation(); _appsPage = (_appsPage + 1) % 2; sfx.tap(); renderApplicationsPanel(); };
+  prev.onclick = function(ev){ ev.stopPropagation(); _appsPage = (_appsPage + 2) % 3; sfx.tap(); renderApplicationsPanel(); };
   var next = document.createElement('button');
   next.className = 'pg-arrow'; next.textContent = '>';
-  next.onclick = function(ev){ ev.stopPropagation(); _appsPage = (_appsPage + 1) % 2; sfx.tap(); renderApplicationsPanel(); };
+  next.onclick = function(ev){ ev.stopPropagation(); _appsPage = (_appsPage + 1) % 3; sfx.tap(); renderApplicationsPanel(); };
   arrows.appendChild(prev); arrows.appendChild(next);
   hdr.appendChild(title); hdr.appendChild(arrows);
 
@@ -1244,11 +1269,17 @@ function renderApplicationsPanel() {
     } else {
       _pendingApps.forEach(function(a){ body.appendChild(appRow(a)); });
     }
-  } else {
+  } else if (_appsPage === 1) {
     if (!_blacklistArr.length) {
       body.innerHTML = '<div class="j-empty">Список пуст</div>';
     } else {
       _blacklistArr.forEach(function(b){ body.appendChild(blacklistRow(b)); });
+    }
+  } else {
+    if (!_approvedArr.length) {
+      body.innerHTML = '<div class="j-empty">Никого нет</div>';
+    } else {
+      _approvedArr.forEach(function(a){ body.appendChild(approvedRow(a)); });
     }
   }
   showMenu();
@@ -1272,6 +1303,16 @@ function blacklistRow(b) {
   row.appendChild(nm);
   var xBtn = document.createElement('button'); xBtn.className = 'p-btn x'; xBtn.textContent = '\u2715';
   xBtn.onclick = function(ev){ ev.stopPropagation(); unblockUser(b); };
+  row.appendChild(xBtn);
+  return row;
+}
+
+function approvedRow(a) {
+  var row = document.createElement('div'); row.className = 'p-row';
+  var nm = document.createElement('span'); nm.className = 'p-name'; nm.textContent = a.name;
+  row.appendChild(nm);
+  var xBtn = document.createElement('button'); xBtn.className = 'p-btn x'; xBtn.textContent = '\u2715';
+  xBtn.onclick = function(ev){ ev.stopPropagation(); removeApproved(a); };
   row.appendChild(xBtn);
   return row;
 }
@@ -1301,6 +1342,14 @@ function unblockUser(b) {
   blacklistRef(b.uid).delete().then(function(){
     toast(b.name + ' — снят из чёрного списка'); sfx.remove();
   }).catch(function(err){ console.log('unblock', err); });
+}
+
+// убрать из принятых → доступ пропадает, человеку нужно подавать заявку заново
+function removeApproved(a) {
+  if (!db) return;
+  approvedRef(a.uid).delete().then(function(){
+    toast(a.name + ' — доступ отозван'); sfx.remove();
+  }).catch(function(err){ console.log('remove approved', err); });
 }
 
 // ── DEBTOR MENU ───────────────────────────────────────────────────────────────
