@@ -298,6 +298,35 @@
     transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s linear .25s;
   }
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s}
+
+  /* GATE SLOT — форма заявки / статусные сообщения на экране входа */
+  .gate-slot{width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:6px}
+  .gate-sub{font-size:13px;color:var(--text-dim);line-height:1.45;text-align:center}
+  .gate-input{
+    width:100%;font-size:16px;padding:12px 14px;background:rgba(0,0,0,.5);
+    border:1px solid var(--border2);border-radius:var(--r-sm);outline:none;
+    color:var(--text);text-align:center;font-family:inherit;
+  }
+  .gate-input:focus{border-color:var(--ice)}
+  .gate-submit{
+    width:100%;color:#fff;cursor:pointer;border:1px solid var(--ice);border-radius:var(--r-sm);
+    background:rgba(127,216,239,.08);padding:13px;font-size:12px;font-weight:600;
+    letter-spacing:2px;text-transform:uppercase;
+    transition:transform .15s cubic-bezier(.34,1.56,.64,1),background .15s,opacity .15s;
+  }
+  .gate-submit:active{transform:scale(.97);background:rgba(127,216,239,.22)}
+  .gate-submit:disabled{opacity:.4;cursor:default;transform:none;border-color:var(--border2);background:transparent;color:var(--text-muted)}
+
+  /* ПОСТРАНИЧНОЕ МЕНЮ (рассмотрение заявок / чёрный список) */
+  .ctx-hdr.pg{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .pg-arrows{display:flex;gap:4px;flex-shrink:0}
+  .pg-arrow{
+    width:24px;height:24px;border-radius:var(--r-sm);border:1px solid var(--border2);
+    background:transparent;color:var(--text-dim);font-size:13px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;touch-action:manipulation;
+    transition:transform .12s cubic-bezier(.34,1.56,.64,1),background .12s;
+  }
+  .pg-arrow:active{transform:scale(.88);background:rgba(255,255,255,.14)}
 </style>
 </head>
 <body>
@@ -312,6 +341,7 @@
     <h1 id="gateTitle"></h1>
     <p id="gateText"></p>
     <div id="gateId"></div>
+    <div id="gateSlot" class="gate-slot"></div>
   </div>
   <audio id="gateTrack" src="track.mp3" preload="auto" playsinline></audio>
 </div>
@@ -320,11 +350,11 @@
 <div id="mainApp">
   <header>
     <span class="hdr-title">График Дежурства</span>
-    <button class="dots-btn" onclick="openHeaderMenu(event)">⋯</button>
+    <button class="dots-btn" id="headerDots" onclick="openHeaderMenu(event)">⋯</button>
   </header>
 
   <div class="sec-row">
-    <div class="sec-label sec-link" onclick="openLastMenu(event)">Список дежурных</div>
+    <div class="sec-label sec-link" id="lastLabel" onclick="openLastMenu(event)">Список дежурных</div>
     <button class="copy-btn" onclick="copyCounts()" aria-label="Скопировать счётчики">
       <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
     </button>
@@ -334,7 +364,7 @@
   <div class="sec-label">Пропустившие</div>
   <div class="debtors-list" id="debtorsList"></div>
 
-  <div class="rand-wrap">
+  <div class="rand-wrap" id="randSection">
     <button class="rand-btn" id="randBtn" onclick="randomize()">Рандомайзер</button>
     <div class="rand-result" id="randResult">
       <button class="rr-close" onclick="hideRand()">✕</button>
@@ -357,6 +387,32 @@
 
 <div class="toast" id="toast"></div>
 <audio id="easterEggTrack" src="office.mp3" preload="auto" playsinline></audio>
+
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  НАСТРОЙКА БЕСПЛАТНОГО СЕРВЕРА (Firebase Firestore) — нужно один раз:
+  1. Зайди на https://console.firebase.google.com, создай проект (бесплатно).
+  2. В проекте: ⚙️ → Project settings → вкладка "Your apps" → "</>" (Web) →
+     зарегистрируй приложение, скопируй объект firebaseConfig.
+  3. В левом меню: Build → Firestore Database → "Create database" →
+     запусти в "test mode" (или production + свои правила, см. ниже).
+  4. Вставь скопированный firebaseConfig вместо заглушки ниже, в теге <script>
+     (ищи переменную firebaseConfig чуть дальше по файлу).
+  5. Firestore → вкладка Rules → для простого старта (без своего сервера
+     строгую проверку всё равно не сделать — доступ, как и раньше,
+     проверяется на экране, а не на сервере):
+       rules_version = '2';
+       service cloud.firestore {
+         match /databases/{database}/documents {
+           match /{document=**} { allow read, write: if true; }
+         }
+       }
+  Все данные (график, заявки, чёрный список) теперь хранятся в этой базе
+  и обновляются у всех пользователей в реальном времени.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 
 <script>
 // ── SOUND ENGINE (Web Audio, синтезированные звуки, без файлов) ───────────────
@@ -483,8 +539,30 @@ var PAIRS = [
 // FILL: твой Telegram user id (число). при первом запуске экран покажет его, пока 0 никого не пускает
 var OWNER_ID = 8018085618;
 
+// ── FIREBASE (общий бесплатный бэкенд, инструкция в комментарии выше по файлу) ─
+// FILL: вставь сюда свой firebaseConfig из консоли Firebase
+var firebaseConfig = {
+  apiKey: "AIzaSyCsjdz_2yn-DwVn20SqsY2k9a",
+  authDomain: "://firebaseapp.com",
+  projectId: "zrazebot",
+  storageBucket: "zrazebot.firebasestorage",
+  messagingSenderId: "816368407014",
+  appId: "1:816368407014:web:4a0622df2e9b"
+};
+var db = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch(e) { console.log('firebase init', e); }
+
+function applicationRef(uid){ return db.collection('applications').doc(String(uid)); }
+function approvedRef(uid)   { return db.collection('approved').doc(String(uid)); }
+function blacklistRef(uid)  { return db.collection('blacklist').doc(String(uid)); }
+function appStateRef()      { return db.collection('appState').doc('main'); }
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
 var S; // declared first, assigned below
+var _role = null; // 'owner' | 'limited' — определяет урезанный интерфейс
 
 function defaultCounts() {
   var c = {};
@@ -512,61 +590,38 @@ function loadState() {
   return normalize({});
 }
 
-// ── CLOUD (Telegram CloudStorage: твой тг-аккаунт, общий для всех устройств) ──
+// ── CLOUD (Firestore: общий бэкенд, данные видят все подтверждённые пользователи) ──
 var TG = window.Telegram && window.Telegram.WebApp;
-var CS = (TG && TG.initData && TG.isVersionAtLeast && TG.isVersionAtLeast('6.9') && TG.CloudStorage) ? TG.CloudStorage : null;
 
 function persistLocal() {
   try { localStorage.setItem('duty_v5', JSON.stringify(S)); } catch(e) {}
 }
 
-// журнал лежит отдельными ключами (dlog_<индекс>), по одному на человека:
-// на одно значение у телеграма лимит 4096, общий json с журналом в него не влезет
-var NAMES = [];
-PAIRS.forEach(function(p){ NAMES.push(p.a); NAMES.push(p.b); });
-function logKey(name){ return 'dlog_' + NAMES.indexOf(name); }
-var _dirty = {};
-function markAllDirty(){ NAMES.forEach(function(n){ _dirty[n] = 1; }); }
-
+// пушим изменения в общую базу с небольшой задержкой (дебаунс быстрых кликов)
 var _ct;
 function cloudPush() {
-  if (!CS) return;
+  if (!db) return;
   clearTimeout(_ct);
   _ct = setTimeout(function(){
-    var json = JSON.stringify({counts:S.counts, debtors:S.debtors, last:S.last, ts:S.ts});
-    if (json.length > 4096) { toast('Облако: данные не влезли (>4096)'); return; } // лимит тг на значение
-    CS.setItem('duty_v5', json, function(err){ if (err) console.log('cloud set', err); });
-    var d = _dirty; _dirty = {};
-    Object.keys(d).forEach(function(n){
-      CS.setItem(logKey(n), JSON.stringify(S.log[n] || []), function(err){
-        if (err) { console.log('cloud log', err); _dirty[n] = 1; }
-      });
-    });
+    appStateRef().set({counts:S.counts, debtors:S.debtors, last:S.last, log:S.log, ts:S.ts})
+      .catch(function(err){ console.log('cloud push', err); });
   }, 400);
 }
 
-// у кого ts новее, тот и прав; без ts (старые данные) облако выигрывает, если оно есть
-function cloudPull() {
-  if (!CS) return;
-  CS.getItem('duty_v5', function(err, val){
-    if (err) return;
-    var c = null;
-    try { if (val) c = normalize(JSON.parse(val)); } catch(e) {}
+// живая подписка: срабатывает у ВСЕХ, кто сейчас открыл график, как только кто-то его изменил
+var _stateSyncStarted = false;
+function startStateSync() {
+  if (!db || _stateSyncStarted) return;
+  _stateSyncStarted = true;
+  appStateRef().onSnapshot(function(doc){
+    if (!doc.exists) { if (_role === 'owner') cloudPush(); return; }
+    var c = doc.data();
     var lt = S.ts || 0;
-    if (c && (c.ts || 0) > lt) {
-      CS.getItems(NAMES.map(logKey), function(err2, vals){
-        if (!err2 && vals) {
-          NAMES.forEach(function(n){
-            try { var a = JSON.parse(vals[logKey(n)] || '[]'); if (Array.isArray(a)) c.log[n] = a; } catch(e) {}
-          });
-        } else { c.log = S.log; }
-        S = normalize(c); persistLocal(); render();
-        toast('Данные подтянуты из облака');
-      });
-    } else if (!c || (c.ts || 0) < lt) {
-      markAllDirty(); cloudPush();
+    if ((c.ts || 0) > lt) {
+      S = normalize({counts:c.counts, debtors:c.debtors, last:c.last, log:c.log, ts:c.ts});
+      persistLocal(); render();
     }
-  });
+  }, function(err){ console.log('state sync', err); });
 }
 
 function save() {
@@ -657,32 +712,81 @@ var setEmojiMode = function(){};
   startSnow();
 })();
 
-// ── ACCESS (вход через телеграм: пускает только OWNER_ID) ─────────────────────
-// ВАЖНО: это проверка на экране, не серверная защита. данные лежат в твоём CloudStorage
-// и на устройстве, чужой их всё равно не получит. серверная проверка initData нужна только с бэкендом.
+// ── ACCESS (вход через телеграм) ───────────────────────────────────────────────
+// владелец (OWNER_ID) — полный доступ.
+// остальные: новый → форма заявки, заявка на рассмотрении → статус,
+// подтверждённый → урезанный доступ к графику, отклонённый → "вход заблокирован".
+// ВАЖНО: это проверка на экране и в общей базе, не военная серверная защита —
+// своего бэкенда с секретным ключом тут нет, как и раньше.
 var _owner = false;
 
-function showGate(kind, uid) {
+function showGate(kind, uid, extraName) {
   var T = {
     notg:    ['Открой через Telegram', 'Этот график работает только внутри бота.', false],
     setup:   ['Первый запуск', 'Твой Telegram ID. Пришли его, впишу в файл, и вход заработает.', false],
-    blocked: ['Доступ заблокирован', 'Этот график доступен только владельцу.', true]
+    loading: ['Welcome!', '', false],
+    welcome: ['Welcome!', '', false],
+    pending: ['Welcome!', '', false],
+    blocked: ['Welcome!', '', true]
   }[kind];
   document.getElementById('gateTitle').textContent = T[0];
   document.getElementById('gateText').textContent  = T[1];
+  document.getElementById('gateText').style.display = T[1] ? '' : 'none';
   document.getElementById('gateBadge').classList.toggle('bad', T[2]);
   var idEl = document.getElementById('gateId');
-  idEl.textContent = uid ? (kind === 'setup' ? String(uid) : 'ID: ' + uid) : '';
+  idEl.textContent = (kind === 'setup' && uid) ? String(uid) : '';
   idEl.classList.toggle('big', kind === 'setup');
+
+  var slot = document.getElementById('gateSlot');
+  slot.innerHTML = '';
+  if (kind === 'loading') {
+    slot.innerHTML = '<div class="gate-sub">Загрузка…</div>';
+  } else if (kind === 'welcome') {
+    slot.innerHTML =
+      '<input id="gateNameInput" class="gate-input no-egg" type="text" placeholder="Введите свою фамилию" autocomplete="off">' +
+      '<button id="gateSubmitBtn" class="gate-submit no-egg" type="button">Подать заявку</button>';
+    document.getElementById('gateSubmitBtn').onclick = submitApplication;
+    var gi = document.getElementById('gateNameInput');
+    gi.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') submitApplication(); });
+  } else if (kind === 'pending') {
+    slot.innerHTML = '<div class="gate-sub">Заявка подана! Рассматривается администратором.</div>';
+  } else if (kind === 'blocked') {
+    slot.innerHTML =
+      '<div class="gate-sub">Вход заблокирован</div>' +
+      '<button class="gate-submit no-egg" type="button" disabled>Подать заявку</button>';
+  }
+
   document.getElementById('gate').style.display = 'flex';
-  if (kind === 'blocked') armGateTrack(); else disarmGateTrack();
+  document.getElementById('mainApp').style.display = 'none';
+  if (kind === 'welcome' || kind === 'pending' || kind === 'blocked') armGateTrack(); else disarmGateTrack();
 }
 
-// ── GATE TRACK (играет один раз, только на экране "Доступ заблокирован",
-// запускается первым тапом/кликом по этому экрану) ────────────────────────
+function submitApplication() {
+  var btn = document.getElementById('gateSubmitBtn');
+  var inp = document.getElementById('gateNameInput');
+  if (!btn || btn.disabled) return;
+  var name = (inp.value || '').trim();
+  if (!name) { toast('Введите фамилию'); sfx.warning(); return; }
+  var u = TG && TG.initDataUnsafe && TG.initDataUnsafe.user;
+  var uid = u ? u.id : null;
+  if (!uid || !db) { toast('Нет связи с сервером'); sfx.warning(); return; }
+  btn.disabled = true;
+  applicationRef(uid).set({uid:uid, name:name, ts:Date.now()}).then(function(){
+    toast('Заявка подана!');
+    showGate('pending', uid, name);
+  }).catch(function(err){
+    console.log('submit application', err);
+    btn.disabled = false;
+    toast('Не удалось отправить заявку');
+  });
+}
+
+// ── GATE TRACK (пасхалка: музыка от тапа по экрану входа, запускается один раз
+// за сессию; не срабатывает от тапов по полю ввода и кнопке заявки) ───────────
 var _gateTrackPlayed = false;
-function _gateTrackHandler() {
+function _gateTrackHandler(e) {
   if (_gateTrackPlayed) return;
+  if (e && e.target && e.target.closest && e.target.closest('.no-egg')) return;
   _gateTrackPlayed = true;
   var a = document.getElementById('gateTrack');
   if (a) {
@@ -725,12 +829,36 @@ function disarmGateTrack() {
   gateEl.removeEventListener('click', _gateTrackHandler, {capture:true});
 }
 
+function applyRoleUI() {
+  var limited = (_role === 'limited');
+  var dots = document.getElementById('headerDots');
+  if (dots) dots.style.display = limited ? 'none' : '';
+  var lastLabel = document.getElementById('lastLabel');
+  if (lastLabel) {
+    if (limited) { lastLabel.classList.remove('sec-link'); lastLabel.onclick = null; lastLabel.style.cursor = 'default'; }
+    else         { lastLabel.classList.add('sec-link'); lastLabel.onclick = openLastMenu; lastLabel.style.cursor = ''; }
+  }
+  var rand = document.getElementById('randSection');
+  if (rand) rand.style.display = limited ? 'none' : '';
+}
+
 function showApp() {
-  _owner = true;
+  _owner = true; _role = 'owner';
   document.getElementById('gate').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
+  applyRoleUI();
   render();
-  cloudPull();
+  startStateSync();
+  startAdminListeners();
+}
+
+function showLimitedApp() {
+  _owner = false; _role = 'limited';
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  applyRoleUI();
+  render();
+  startStateSync();
 }
 
 function checkAccess() {
@@ -739,7 +867,23 @@ function checkAccess() {
   if (!uid)       { showGate('notg'); return; }
   if (!OWNER_ID)  { showGate('setup', uid); return; }
   if (uid === OWNER_ID) { showApp(); return; }
-  showGate('blocked', uid);
+  if (!db)        { showGate('welcome', uid); return; }
+
+  showGate('loading', uid);
+  Promise.all([
+    blacklistRef(uid).get(),
+    approvedRef(uid).get(),
+    applicationRef(uid).get()
+  ]).then(function(res){
+    var blocked = res[0], approved = res[1], applied = res[2];
+    if (blocked.exists)  { showGate('blocked', uid); return; }
+    if (approved.exists) { showLimitedApp(); return; }
+    if (applied.exists)  { showGate('pending', uid, applied.data().name); return; }
+    showGate('welcome', uid);
+  }).catch(function(err){
+    console.log('access check', err);
+    showGate('welcome', uid);
+  });
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
@@ -751,6 +895,7 @@ function render() {
 function renderDuty() {
   var el = document.getElementById('dutyList');
   el.innerHTML = '';
+  var limited = (_role === 'limited');
   PAIRS.forEach(function(p) {
     var div = document.createElement('div');
     div.className = 'duty-item';
@@ -760,7 +905,7 @@ function renderDuty() {
         pRow(p.a, S.counts[p.a] || 0) +
         pRow(p.b, S.counts[p.b] || 0) +
       '</div>' +
-      '<button class="dots-btn" onclick="openPairMenu(event,'+p.id+')">⋯</button>';
+      (limited ? '' : '<button class="dots-btn" onclick="openPairMenu(event,'+p.id+')">⋯</button>');
     el.appendChild(div);
   });
 }
@@ -791,6 +936,7 @@ function renderDebtors() {
     el.innerHTML = '<div class="empty-msg">Пропустивших нет</div>';
     return;
   }
+  var limited = (_role === 'limited');
   S.debtors.forEach(function(d, i) {
     var pair = PAIRS.filter(function(p){ return p.id===d.pairId; })[0];
     var div = document.createElement('div');
@@ -800,13 +946,14 @@ function renderDebtors() {
         '<div class="debtor-name">'+d.name+'</div>' +
         '<div class="debtor-sub">пара '+d.pairId+' · '+pair.a+' &amp; '+pair.b+'</div>' +
       '</div>' +
-      '<button class="dots-btn" onclick="openDebtorMenu(event,'+i+')">⋯</button>';
+      (limited ? '' : '<button class="dots-btn" onclick="openDebtorMenu(event,'+i+')">⋯</button>');
     el.appendChild(div);
   });
 }
 
 // ── CONTEXT MENU ──────────────────────────────────────────────────────────────
 var _subOpen = false;
+var _currentMenu = null; // 'apps' когда открыто постраничное меню заявок/чёрного списка
 
 function posMenu(e) {
   var menu = document.getElementById('ctxMenu');
@@ -834,15 +981,18 @@ function closeMenu() {
   document.getElementById('ctxMenu').classList.remove('open');
   document.getElementById('overlay').classList.remove('active');
   _subOpen = false;
+  _currentMenu = null;
   if (wasOpen) sfx.close();
 }
 
 function buildMenu(headerText, items) {
   document.getElementById('ctxMenu').classList.remove('wide');
+  document.getElementById('ctxHdr').className = 'ctx-hdr';
   document.getElementById('ctxHdr').textContent = headerText;
   var body = document.getElementById('ctxBody');
   body.innerHTML = '';
   _subOpen = false;
+  _currentMenu = null;
 
   items.forEach(function(item) {
     if (item.type === 'sub') {
@@ -881,12 +1031,11 @@ function logAdd(name, n) {
   var a = S.log[name] || (S.log[name] = []);
   a.push([Date.now(), n]);
   if (a.length > LOG_MAX) a.splice(0, a.length - LOG_MAX);
-  _dirty[name] = 1;
 }
 // «−» откатывает последнюю запись, только если она соответствует текущему числу
 function logUndo(name, nBefore) {
   var a = S.log[name];
-  if (a && a.length && a[a.length-1][1] === nBefore) { a.pop(); _dirty[name] = 1; }
+  if (a && a.length && a[a.length-1][1] === nBefore) { a.pop(); }
 }
 function fmtLog(ts) {
   var d = new Date(ts);
@@ -1004,6 +1153,13 @@ function openHeaderMenu(e) {
   buildMenu('Управление', []);
   var body = document.getElementById('ctxBody');
 
+  // пункт "Рассмотрение заявок" — открывает постраничное меню (заявки / чёрный список)
+  var apps = document.createElement('div');
+  apps.className = 'ctx-item';
+  apps.innerHTML = '<span>\u2630</span> Рассмотрение заявок';
+  apps.onclick = function(){ openApplicationsPanel(); };
+  body.appendChild(apps);
+
   // пункт "Звук: вкл/выкл" — переключается тапом, меню не закрывается
   var snd = document.createElement('div');
   snd.className = 'ctx-item';
@@ -1030,6 +1186,121 @@ function openHeaderMenu(e) {
   };
   body.appendChild(it);
   showMenu();
+}
+
+// ── РАССМОТРЕНИЕ ЗАЯВОК (постраничное меню: заявки ⇄ чёрный список) ──────────
+var _appsPage = 0;          // 0 = заявки на рассмотрении, 1 = чёрный список
+var _pendingApps = [];      // [{uid, name, ts}]
+var _blacklistArr = [];     // [{uid, name, ts}]
+
+// живые подписки — работают, пока открыт график у владельца; список обновляется
+// сам, даже если меню заявок сейчас открыто на экране
+function startAdminListeners() {
+  if (!db) return;
+  db.collection('applications').onSnapshot(function(snap){
+    _pendingApps = [];
+    snap.forEach(function(doc){ _pendingApps.push(doc.data()); });
+    if (_currentMenu === 'apps') renderApplicationsPanel();
+  }, function(err){ console.log('apps sync', err); });
+  db.collection('blacklist').onSnapshot(function(snap){
+    _blacklistArr = [];
+    snap.forEach(function(doc){ _blacklistArr.push(doc.data()); });
+    if (_currentMenu === 'apps') renderApplicationsPanel();
+  }, function(err){ console.log('blacklist sync', err); });
+}
+
+function openApplicationsPanel(e) {
+  if (e) e.stopPropagation();
+  _appsPage = 0;
+  renderApplicationsPanel();
+}
+
+function renderApplicationsPanel() {
+  _currentMenu = 'apps';
+  document.getElementById('ctxMenu').classList.add('wide');
+
+  var hdr = document.getElementById('ctxHdr');
+  hdr.className = 'ctx-hdr pg';
+  hdr.innerHTML = '';
+  var title = document.createElement('span');
+  title.textContent = (_appsPage === 0) ? 'Рассмотрение заявок' : 'Чёрный список';
+  var arrows = document.createElement('div');
+  arrows.className = 'pg-arrows';
+  var prev = document.createElement('button');
+  prev.className = 'pg-arrow'; prev.textContent = '<';
+  prev.onclick = function(ev){ ev.stopPropagation(); _appsPage = (_appsPage + 1) % 2; sfx.tap(); renderApplicationsPanel(); };
+  var next = document.createElement('button');
+  next.className = 'pg-arrow'; next.textContent = '>';
+  next.onclick = function(ev){ ev.stopPropagation(); _appsPage = (_appsPage + 1) % 2; sfx.tap(); renderApplicationsPanel(); };
+  arrows.appendChild(prev); arrows.appendChild(next);
+  hdr.appendChild(title); hdr.appendChild(arrows);
+
+  var body = document.getElementById('ctxBody');
+  body.innerHTML = '';
+
+  if (_appsPage === 0) {
+    if (!_pendingApps.length) {
+      body.innerHTML = '<div class="j-empty">Заявок нет</div>';
+    } else {
+      _pendingApps.forEach(function(a){ body.appendChild(appRow(a)); });
+    }
+  } else {
+    if (!_blacklistArr.length) {
+      body.innerHTML = '<div class="j-empty">Список пуст</div>';
+    } else {
+      _blacklistArr.forEach(function(b){ body.appendChild(blacklistRow(b)); });
+    }
+  }
+  showMenu();
+}
+
+function appRow(a) {
+  var row = document.createElement('div'); row.className = 'p-row';
+  var nm = document.createElement('span'); nm.className = 'p-name'; nm.textContent = a.name;
+  row.appendChild(nm);
+  var xBtn = document.createElement('button'); xBtn.className = 'p-btn x'; xBtn.textContent = '\u2715';
+  xBtn.onclick = function(ev){ ev.stopPropagation(); rejectApplication(a); };
+  var okBtn = document.createElement('button'); okBtn.className = 'p-btn plus'; okBtn.textContent = '\u2713';
+  okBtn.onclick = function(ev){ ev.stopPropagation(); approveApplication(a); };
+  row.appendChild(xBtn); row.appendChild(okBtn);
+  return row;
+}
+
+function blacklistRow(b) {
+  var row = document.createElement('div'); row.className = 'p-row';
+  var nm = document.createElement('span'); nm.className = 'p-name'; nm.textContent = b.name;
+  row.appendChild(nm);
+  var xBtn = document.createElement('button'); xBtn.className = 'p-btn x'; xBtn.textContent = '\u2715';
+  xBtn.onclick = function(ev){ ev.stopPropagation(); unblockUser(b); };
+  row.appendChild(xBtn);
+  return row;
+}
+
+// заявка отклонена → в чёрный список; экран входа у этого человека покажет
+// "Вход заблокирован", кнопка заявки станет неактивна
+function rejectApplication(a) {
+  if (!db) return;
+  applicationRef(a.uid).delete().catch(function(err){ console.log('reject/del', err); });
+  blacklistRef(a.uid).set({uid:a.uid, name:a.name, ts:Date.now()}).then(function(){
+    toast(a.name + ' — заявка отклонена'); sfx.remove();
+  }).catch(function(err){ console.log('reject/set', err); });
+}
+
+// заявка одобрена → человек получает урезанный доступ к графику
+function approveApplication(a) {
+  if (!db) return;
+  applicationRef(a.uid).delete().catch(function(err){ console.log('approve/del', err); });
+  approvedRef(a.uid).set({uid:a.uid, name:a.name, ts:Date.now()}).then(function(){
+    toast(a.name + ' — доступ выдан'); sfx.success();
+  }).catch(function(err){ console.log('approve/set', err); });
+}
+
+// убрать из чёрного списка → человек снова может подать заявку
+function unblockUser(b) {
+  if (!db) return;
+  blacklistRef(b.uid).delete().then(function(){
+    toast(b.name + ' — снят из чёрного списка'); sfx.remove();
+  }).catch(function(err){ console.log('unblock', err); });
 }
 
 // ── DEBTOR MENU ───────────────────────────────────────────────────────────────
@@ -1072,7 +1343,7 @@ function addDebtor(name,pairId,slot){
 // стереть всё: счётчики в ноль и список пропустивших пустой
 function doResetAll(){
   S={ debtors:[], counts:defaultCounts(), log:{} };
-  markAllDirty(); save(); render(); hideRand();
+  save(); render(); hideRand();
   toast('Всё стёрто');
 }
 
@@ -1187,7 +1458,6 @@ checkAccess();
 document.addEventListener('visibilitychange', function(){
   if (document.hidden) return;
   startSnow();
-  if (_owner) cloudPull();
 });
 </script>
 </body>
