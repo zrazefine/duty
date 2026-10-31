@@ -554,6 +554,10 @@ var db = null;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
+  // Firestore по умолчанию пытается открыть WebSocket/стриминговое соединение;
+  // во встроенном вебвью Telegram (особенно iOS) такое соединение часто просто
+  // зависает без ответа и без ошибки. Принудительный long-polling обходит это.
+  db.settings({ experimentalForceLongPolling: true, merge: true });
 } catch(e) { console.log('firebase init', e); }
 
 function applicationRef(uid){ return db.collection('applications').doc(String(uid)); }
