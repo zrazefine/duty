@@ -631,15 +631,43 @@ function save() {
 }
 
 // принудительное сохранение: пишет в облако немедленно (без дебаунса) и
-// показывает результат — для случаев, когда у других не подтягивается обновление
+// показывает результат — для случаев, когда у других не подтягивается обновление.
+// Запрос к Firestore в вебвью Telegram иногда не завершается ни успехом, ни
+// ошибкой (зависает) — поэтому ставим собственный таймаут, чтобы кнопка
+// никогда не молчала, и показываем "Сохраняю…" сразу по нажатию.
+var _forceSaveBusy = false;
 function forceSave() {
+  if (_forceSaveBusy) return;
   S.ts = Date.now();
   persistLocal();
   clearTimeout(_ct);
-  if (!db) { toast('Нет связи с сервером'); sfx.warning(); return; }
+  if (!db) { toast('Нет связи с сервером (Firebase не инициализирован)'); sfx.warning(); return; }
+
+  _forceSaveBusy = true;
+  toast('Сохраняю…');
+
+  var settled = false;
+  var timeoutId = setTimeout(function(){
+    if (settled) return;
+    settled = true; _forceSaveBusy = false;
+    toast('Не удалось сохранить: нет ответа от сервера');
+    sfx.warning();
+  }, 7000);
+
   appStateRef().set({counts:S.counts, debtors:S.debtors, last:S.last, log:S.log, ts:S.ts})
-    .then(function(){ toast('Данные сохранены'); sfx.success(); })
-    .catch(function(err){ console.log('force save', err); toast('Не удалось сохранить'); sfx.warning(); });
+    .then(function(){
+      if (settled) return;
+      settled = true; _forceSaveBusy = false;
+      clearTimeout(timeoutId);
+      toast('Данные сохранены'); sfx.success();
+    })
+    .catch(function(err){
+      if (settled) return;
+      settled = true; _forceSaveBusy = false;
+      clearTimeout(timeoutId);
+      console.log('force save', err);
+      toast('Не удалось сохранить: ' + (err && err.code ? err.code : 'ошибка')); sfx.warning();
+    });
 }
 
 // initialise S immediately
