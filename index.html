@@ -580,6 +580,7 @@ function normalize(o) {
   if (!o.counts || typeof o.counts !== 'object') o.counts = {};
   if (!Array.isArray(o.debtors)) o.debtors = [];
   if (!o.log || typeof o.log !== 'object') o.log = {};
+  if (o.last === undefined) o.last = null; // Firestore не принимает undefined в полях документа
   PAIRS.forEach(function(p){
     if (o.counts[p.a] === undefined) o.counts[p.a] = 0;
     if (o.counts[p.b] === undefined) o.counts[p.b] = 0;
@@ -608,8 +609,13 @@ function cloudPush() {
   if (!db) return;
   clearTimeout(_ct);
   _ct = setTimeout(function(){
-    appStateRef().set({counts:S.counts, debtors:S.debtors, last:S.last, log:S.log, ts:S.ts})
-      .catch(function(err){ console.log('cloud push', err); });
+    // .set() может бросить СИНХРОННО (до создания промиса), например если в
+    // данных попадётся undefined — Firestore такое не принимает. try/catch
+    // гарантирует, что это попадёт в консоль, а не провалится молча.
+    try {
+      appStateRef().set({counts:S.counts, debtors:S.debtors, last:(S.last==null?null:S.last), log:S.log, ts:S.ts})
+        .catch(function(err){ console.log('cloud push', err); });
+    } catch(err) { console.log('cloud push sync throw', err); }
   }, 400);
 }
 
@@ -659,20 +665,33 @@ function forceSave() {
     sfx.warning();
   }, 7000);
 
-  appStateRef().set({counts:S.counts, debtors:S.debtors, last:S.last, log:S.log, ts:S.ts})
-    .then(function(){
-      if (settled) return;
+  // .set() может бросить СИНХРОННО (до создания промиса) — например если в
+  // данных попадётся undefined, который Firestore не принимает. Раньше это
+  // срывало всю функцию молча, и срабатывал только таймаут выше.
+  try {
+    appStateRef().set({counts:S.counts, debtors:S.debtors, last:(S.last==null?null:S.last), log:S.log, ts:S.ts})
+      .then(function(){
+        if (settled) return;
+        settled = true; _forceSaveBusy = false;
+        clearTimeout(timeoutId);
+        toast('Данные сохранены'); sfx.success();
+      })
+      .catch(function(err){
+        if (settled) return;
+        settled = true; _forceSaveBusy = false;
+        clearTimeout(timeoutId);
+        console.log('force save', err);
+        toast('Не удалось сохранить: ' + (err && err.code ? err.code : 'ошибка')); sfx.warning();
+      });
+  } catch(err) {
+    if (!settled) {
       settled = true; _forceSaveBusy = false;
       clearTimeout(timeoutId);
-      toast('Данные сохранены'); sfx.success();
-    })
-    .catch(function(err){
-      if (settled) return;
-      settled = true; _forceSaveBusy = false;
-      clearTimeout(timeoutId);
-      console.log('force save', err);
-      toast('Не удалось сохранить: ' + (err && err.code ? err.code : 'ошибка')); sfx.warning();
-    });
+      console.log('force save sync throw', err);
+      toast('Не удалось сохранить: ' + (err && err.message ? err.message : 'ошибка данных'));
+      sfx.warning();
+    }
+  }
 }
 
 // initialise S immediately
@@ -1424,7 +1443,7 @@ function addDebtor(name,pairId,slot){
 
 // стереть всё: счётчики в ноль и список пропустивших пустой
 function doResetAll(){
-  S={ debtors:[], counts:defaultCounts(), log:{} };
+  S={ debtors:[], counts:defaultCounts(), log:{}, last:null };
   save(); render(); hideRand();
   toast('Всё стёрто');
 }
