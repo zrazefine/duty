@@ -539,6 +539,23 @@ var PAIRS = [
 // FILL: твой Telegram user id (число). при первом запуске экран покажет его, пока 0 никого не пускает
 var OWNER_ID = 8018085618;
 
+// список всех фамилий из графика дежурств — для проверки заявки
+var ROSTER_NAMES = (function(){
+  var out = [];
+  PAIRS.forEach(function(p){ out.push(p.a, p.b); });
+  return out;
+})();
+// ищет фамилию в графике без учёта регистра, возвращает "каноническое"
+// написание из графика (как в PAIRS) или null, если такой фамилии там нет
+function findRosterName(input) {
+  var norm = (input || '').trim().toLowerCase();
+  if (!norm) return null;
+  for (var i = 0; i < ROSTER_NAMES.length; i++) {
+    if (ROSTER_NAMES[i].toLowerCase() === norm) return ROSTER_NAMES[i];
+  }
+  return null;
+}
+
 // ── FIREBASE (общий бесплатный бэкенд, инструкция в комментарии выше по файлу) ─
 // FILL: вставь сюда свой firebaseConfig из консоли Firebase
 var firebaseConfig = {
@@ -821,13 +838,17 @@ function submitApplication() {
   var btn = document.getElementById('gateSubmitBtn');
   var inp = document.getElementById('gateNameInput');
   if (!btn || btn.disabled) return;
-  var name = (inp.value || '').trim();
-  if (!name) { toast('Введите фамилию'); sfx.warning(); return; }
+  var raw = (inp.value || '').trim();
+  if (!raw) { toast('Введите фамилию'); sfx.warning(); return; }
+  // фамилия принимается только если она есть в графике дежурств (без учёта регистра)
+  var name = findRosterName(raw);
+  if (!name) { toast('Такой фамилии нет в графике дежурств'); sfx.warning(); return; }
   var u = TG && TG.initDataUnsafe && TG.initDataUnsafe.user;
   var uid = u ? u.id : null;
   if (!uid || !db) { toast('Нет связи с сервером'); sfx.warning(); return; }
+  var username = (u && u.username) ? u.username : null;
   btn.disabled = true;
-  applicationRef(uid).set({uid:uid, name:name, ts:Date.now()}).then(function(){
+  applicationRef(uid).set({uid:uid, name:name, username:username, ts:Date.now()}).then(function(){
     toast('Заявка подана!');
     showGate('pending', uid, name);
   }).catch(function(err){
@@ -1332,10 +1353,22 @@ function renderApplicationsPanel() {
   showMenu();
 }
 
+// \u043f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u044e\u0437\u0435\u0440\u043d\u0435\u0439\u043c \u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\u0430 \u0447\u0435\u043b\u043e\u0432\u0435\u043a\u0430 \u0442\u0430\u043f\u043e\u043c \u043f\u043e \u0444\u0430\u043c\u0438\u043b\u0438\u0438 \u2014 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043d\u0430 \u0432\u0441\u0435\u0445
+// \u0442\u0440\u0451\u0445 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430\u0445 (\u0437\u0430\u044f\u0432\u043a\u0438 / \u0447\u0451\u0440\u043d\u044b\u0439 \u0441\u043f\u0438\u0441\u043e\u043a / \u043f\u0440\u0438\u043d\u044f\u0442\u044b\u0435)
+function showUsername(entry) {
+  var u = entry.username;
+  toast(u ? ('@' + u) : '\u042e\u0437\u0435\u0440\u043d\u0435\u0439\u043c \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442');
+}
+function nameSpan(label, entry) {
+  var nm = document.createElement('span'); nm.className = 'p-name'; nm.textContent = label;
+  nm.style.cursor = 'pointer'; nm.style.touchAction = 'manipulation';
+  nm.onclick = function(ev){ ev.stopPropagation(); showUsername(entry); sfx.tap(); };
+  return nm;
+}
+
 function appRow(a) {
   var row = document.createElement('div'); row.className = 'p-row';
-  var nm = document.createElement('span'); nm.className = 'p-name'; nm.textContent = a.name;
-  row.appendChild(nm);
+  row.appendChild(nameSpan(a.name, a));
   var xBtn = document.createElement('button'); xBtn.className = 'p-btn x'; xBtn.textContent = '\u2715';
   xBtn.onclick = function(ev){ ev.stopPropagation(); rejectApplication(a); };
   var okBtn = document.createElement('button'); okBtn.className = 'p-btn plus'; okBtn.textContent = '\u2713';
@@ -1346,8 +1379,7 @@ function appRow(a) {
 
 function blacklistRow(b) {
   var row = document.createElement('div'); row.className = 'p-row';
-  var nm = document.createElement('span'); nm.className = 'p-name'; nm.textContent = b.name;
-  row.appendChild(nm);
+  row.appendChild(nameSpan(b.name, b));
   var xBtn = document.createElement('button'); xBtn.className = 'p-btn x'; xBtn.textContent = '\u2715';
   xBtn.onclick = function(ev){ ev.stopPropagation(); unblockUser(b); };
   row.appendChild(xBtn);
@@ -1356,8 +1388,7 @@ function blacklistRow(b) {
 
 function approvedRow(a) {
   var row = document.createElement('div'); row.className = 'p-row';
-  var nm = document.createElement('span'); nm.className = 'p-name'; nm.textContent = a.name;
-  row.appendChild(nm);
+  row.appendChild(nameSpan(a.name, a));
   var xBtn = document.createElement('button'); xBtn.className = 'p-btn x'; xBtn.textContent = '\u2715';
   xBtn.onclick = function(ev){ ev.stopPropagation(); removeApproved(a); };
   row.appendChild(xBtn);
@@ -1369,7 +1400,7 @@ function approvedRow(a) {
 function rejectApplication(a) {
   if (!db) return;
   applicationRef(a.uid).delete().catch(function(err){ console.log('reject/del', err); });
-  blacklistRef(a.uid).set({uid:a.uid, name:a.name, ts:Date.now()}).then(function(){
+  blacklistRef(a.uid).set({uid:a.uid, name:a.name, username:(a.username||null), ts:Date.now()}).then(function(){
     toast(a.name + ' — заявка отклонена'); sfx.remove();
   }).catch(function(err){ console.log('reject/set', err); });
 }
@@ -1378,7 +1409,7 @@ function rejectApplication(a) {
 function approveApplication(a) {
   if (!db) return;
   applicationRef(a.uid).delete().catch(function(err){ console.log('approve/del', err); });
-  approvedRef(a.uid).set({uid:a.uid, name:a.name, ts:Date.now()}).then(function(){
+  approvedRef(a.uid).set({uid:a.uid, name:a.name, username:(a.username||null), ts:Date.now()}).then(function(){
     toast(a.name + ' — доступ выдан'); sfx.success();
   }).catch(function(err){ console.log('approve/set', err); });
 }
