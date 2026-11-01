@@ -885,9 +885,19 @@ function submitApplication() {
   if (!uid || !db) { toast('Нет связи с сервером'); sfx.warning(); return; }
   var username = (u && u.username) ? u.username : null;
   btn.disabled = true;
-  applicationRef(uid).set({uid:uid, name:name, username:username, ts:Date.now()}).then(function(){
-    toast('Заявка подана!');
-    showGate('pending', uid, name);
+  // фамилия уже закреплена за кем-то одобренным → нельзя подать заявку ещё раз
+  // от того же имени, пока админ не уберёт того человека из "Принятых"
+  db.collection('approved').where('name', '==', name).limit(1).get().then(function(snap){
+    if (!snap.empty) {
+      btn.disabled = false;
+      toast('Эта фамилия уже занята другим пользователем');
+      sfx.warning();
+      return;
+    }
+    return applicationRef(uid).set({uid:uid, name:name, username:username, ts:Date.now()}).then(function(){
+      toast('Заявка подана!');
+      showGate('pending', uid, name);
+    });
   }).catch(function(err){
     console.log('submit application', err);
     btn.disabled = false;
