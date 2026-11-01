@@ -298,6 +298,11 @@
     transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s linear .25s;
   }
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s}
+  /* кликабельный тост (например, юзернейм → открыть профиль): обычный тост
+     намеренно pointer-events:none, чтобы не перехватывать тапы под собой —
+     для кликабельного включаем события и добавляем визуальную подсказку */
+  .toast.clickable{pointer-events:auto;cursor:pointer;border-color:var(--ice);color:var(--ice)}
+  .toast.clickable:active{transform:translateX(-50%) translateY(0) scale(.96)}
 
   /* GATE SLOT — форма заявки / статусные сообщения на экране входа */
   .gate-slot{width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:0}
@@ -733,7 +738,12 @@ var setEmojiMode = function(){};
   };
 
   function size(){
-    W = window.innerWidth; H = window.innerHeight;
+    // visualViewport даёт реальный видимый размер (без зоны под клавиатурой),
+    // когда он доступен — это надёжнее, чем window.innerWidth/innerHeight,
+    // которые в вебвью Telegram не всегда уменьшаются при открытии клавиатуры
+    var vv = window.visualViewport;
+    W = vv ? vv.width : window.innerWidth;
+    H = vv ? vv.height : window.innerHeight;
     cv.width = W*dpr; cv.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
   }
   function mk(initial){
@@ -778,7 +788,20 @@ var setEmojiMode = function(){};
       inited = true; size();
       var N = Math.round(Math.min(32, Math.max(18, W*H/12000)));
       for (var i=0;i<N;i++) flakes.push(mk(true));
+      // window 'resize' сам по себе не всегда срабатывает в вебвью Telegram,
+      // когда появляется клавиатура (особенно iOS) — тогда контейнер меняет
+      // размер, а внутренний растровый буфер canvas остаётся старым, и браузер
+      // просто растягивает картинку под новый CSS-размер (отсюда "растянутые"
+      // смайлики). Подписываемся ещё и на visualViewport, и на событие
+      // Telegram WebApp — это срабатывает надёжно именно при появлении/скрытии
+      // клавиатуры.
       window.addEventListener('resize', size);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', size);
+      }
+      if (TG && TG.onEvent) {
+        try { TG.onEvent('viewportChanged', size); } catch(e) {}
+      }
     }
     if (!_snowRun) { _snowRun = true; lastT = 0; requestAnimationFrame(tick); }
   };
@@ -1357,7 +1380,8 @@ function renderApplicationsPanel() {
 // \u0442\u0440\u0451\u0445 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430\u0445 (\u0437\u0430\u044f\u0432\u043a\u0438 / \u0447\u0451\u0440\u043d\u044b\u0439 \u0441\u043f\u0438\u0441\u043e\u043a / \u043f\u0440\u0438\u043d\u044f\u0442\u044b\u0435)
 function showUsername(entry) {
   var u = entry.username;
-  toast(u ? ('@' + u) : '\u042e\u0437\u0435\u0440\u043d\u0435\u0439\u043c \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442');
+  if (u) toast('@' + u, function(){ openTelegramProfile(u); });
+  else   toast('\u042e\u0437\u0435\u0440\u043d\u0435\u0439\u043c \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442');
 }
 function nameSpan(label, entry) {
   var nm = document.createElement('span'); nm.className = 'p-name'; nm.textContent = label;
@@ -1569,10 +1593,24 @@ function copyCounts() {
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
 var _tt;
-function toast(msg){
+// onClick — необязательный обработчик тапа по самому уведомлению (например,
+// открыть профиль человека по юзернейму); если не передан, тост просто
+// информационный, как и раньше
+function toast(msg, onClick){
   var t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
+  t.onclick = onClick ? function(ev){ ev.stopPropagation(); onClick(); t.classList.remove('show'); clearTimeout(_tt); } : null;
+  t.classList.toggle('clickable', !!onClick);
   clearTimeout(_tt); _tt=setTimeout(function(){ t.classList.remove('show'); },2400);
+}
+
+// открыть профиль/чат пользователя Telegram по юзернейму
+function openTelegramProfile(username){
+  var url = 'https://t.me/' + username;
+  try {
+    if (TG && TG.openTelegramLink) { TG.openTelegramLink(url); return; }
+  } catch(e) {}
+  window.open(url, '_blank');
 }
 
 // ── TG SDK ────────────────────────────────────────────────────────────────────
