@@ -854,7 +854,12 @@ function showGate(kind, uid, extraName) {
 
   document.getElementById('gate').style.display = 'flex';
   document.getElementById('mainApp').style.display = 'none';
-  if (kind === 'welcome' || kind === 'pending' || kind === 'blocked') armGateTrack(); else disarmGateTrack();
+  // пасхалка (смайлики + музыка) больше НЕ срабатывает на экране "welcome" —
+  // там есть поле ввода, и именно сочетание открытой клавиатуры с запущенной
+  // анимацией вызывало визуальные глюки/растягивание. На экранах "pending" и
+  // "blocked" поля ввода нет вообще, клавиатура там никогда не появляется —
+  // значит тап в любое место экрана там безопасен для анимации
+  if (kind === 'pending' || kind === 'blocked') armGateTrack(); else disarmGateTrack();
 }
 
 function submitApplication() {
